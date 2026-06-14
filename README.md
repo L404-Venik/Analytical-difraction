@@ -61,7 +61,7 @@ space = SearchSpace(
 
 # Minimize backscattering (theta = 0) at a single wavelength.
 task = OptimizationTask(
-    wavelength=0.03,
+    wavelengths=0.03,
     angles=np.linspace(0, 2 * np.pi, 360, endpoint=False),
     functional=lambda S_th, S_ph, angles: float(np.abs(S_th[0]) ** 2),
 )

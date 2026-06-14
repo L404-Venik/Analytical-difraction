@@ -47,7 +47,7 @@ The search produces **bodies**; the wavelengths and angles to probe live in the 
 which internally builds an `ObservationParameters` to drive `calculate_S`.
 
 ### `optimization.py` — shared data types
-- **`OptimizationTask`** — what to optimize: wavelength(s), angles array, and `functional(S_th, S_ph, angles) → float`. Supports single-frequency and broadband mode. Builds an `ObservationParameters` for the solver. Broadband tasks evaluate the functional once per wavelength and aggregate the results.
+- **`OptimizationTask`** — what to optimize: `wavelengths` (a scalar is accepted and stored as a 1-element array), angles array, and `functional(S_th, S_ph, angles) → float`. Builds an `ObservationParameters` for the solver. The functional is evaluated once per wavelength and the results are aggregated (`SolverConfig.aggregation`), single-wavelength tasks included.
 - **`SolverConfig`** — controls `n_best` (how many top candidates to return), `aggregation` rule for broadband (`mean`/`max`/`sum`/custom callable), and `progress` flag.
 - **`SolverResult`** — output: `best` (list of `(F, BodyParameters)` sorted ascending), `n_evaluated`, `n_skipped` (count of candidates whose objective was non-finite, NaN/inf, and excluded from ranking), `elapsed_seconds`.
 

@@ -20,9 +20,9 @@ class OptimizationTask:
 
     Parameters
     ----------
-    wavelength : float or np.ndarray
-        Single wavelength for single-frequency optimization, or
-        an array of wavelengths for broadband optimization.
+    wavelengths : float or np.ndarray
+        One or more wavelengths to optimize. A scalar is accepted and
+        stored as a 1-element array.
     angles : np.ndarray
         Angles (radians) at which S is evaluated, in [0, 2π).
         Typically ``np.linspace(0, 2*np.pi, M, endpoint=False)``.
@@ -30,8 +30,8 @@ class OptimizationTask:
     functional : Callable[[np.ndarray, np.ndarray, np.ndarray], float]
         Objective function ``f(S_th, S_ph, angles) → float``.
         Solvers minimize this value.
-        For broadband mode, it is called once per wavelength and then
-        aggregated according to ``SolverConfig.aggregation``.
+        It is evaluated once per wavelength and the results are aggregated
+        according to ``SolverConfig.aggregation``.
         To maximize, return ``-f(...)`` from the callable.
         Multi-objective problems can be handled by returning a weighted sum.
 
@@ -40,7 +40,7 @@ class OptimizationTask:
     Single wavelength, minimize backscattering (theta=0):
 
     >>> task = OptimizationTask(
-    ...     wavelength=0.03,
+    ...     wavelengths=0.03,
     ...     angles=np.linspace(0, 2*np.pi, 360, endpoint=False),
     ...     functional=lambda S_th, S_ph, angles: np.abs(S_th[0])**2,
     ... )
@@ -48,7 +48,7 @@ class OptimizationTask:
     Broadband over 20 frequencies:
 
     >>> task = OptimizationTask(
-    ...     wavelength=np.linspace(0.01, 0.05, 20),
+    ...     wavelengths=np.linspace(0.01, 0.05, 20),
     ...     angles=np.linspace(0, 2*np.pi, 360, endpoint=False),
     ...     functional=lambda S_th, S_ph, angles: np.abs(S_th[0])**2,
     ... )
@@ -56,22 +56,18 @@ class OptimizationTask:
 
     def __init__(
         self,
-        wavelength: Union[float, np.ndarray],
+        wavelengths: Union[float, np.ndarray],
         angles: np.ndarray,
         functional: Callable[[np.ndarray, np.ndarray, np.ndarray], float],
     ):
-        wl = np.asarray(wavelength, dtype=np.float64)
+        wl = np.asarray(wavelengths, dtype=np.float64)
         if wl.ndim == 0:
-            self._wavelength: Union[float, np.ndarray] = float(wl)
-        elif wl.ndim == 1:
-            if len(wl) == 0:
-                raise ValueError("wavelength array must not be empty.")
-            self._wavelength = float(wl[0]) if len(wl) == 1 else wl
-        else:
-            raise ValueError("wavelength must be a scalar or a 1-D array.")
-
-        if np.any(np.asarray(self._wavelength) <= 0):
+            wl = wl.reshape(1)
+        if wl.ndim != 1 or len(wl) == 0:
+            raise ValueError("wavelengths must be a scalar or a non-empty 1-D array.")
+        if np.any(wl <= 0):
             raise ValueError("All wavelengths must be > 0.")
+        self.wavelengths = wl
 
         angles = np.asarray(angles, dtype=np.float64)
         if angles.ndim != 1 or len(angles) == 0:
@@ -79,27 +75,6 @@ class OptimizationTask:
 
         self.angles = angles
         self.functional = functional
-
-    @property
-    def is_broadband(self) -> bool:
-        """True when multiple wavelengths are optimized simultaneously."""
-        return isinstance(self._wavelength, np.ndarray)
-
-    @property
-    def wavelengths(self) -> np.ndarray:
-        """All wavelengths as a 1-D array (length 1 for single-frequency)."""
-        if self.is_broadband:
-            return self._wavelength
-        return np.array([self._wavelength])
-
-    @property
-    def wavelength(self) -> float:
-        """The single wavelength. Raises AttributeError if broadband."""
-        if self.is_broadband:
-            raise AttributeError(
-                "This task is broadband. Use .wavelengths to get the array."
-            )
-        return self._wavelength  # type: ignore[return-value]
 
     @property
     def M(self) -> int:
@@ -116,13 +91,13 @@ class OptimizationTask:
         return ObservationParameters(wavelengths=self.wavelengths, angles=self.angles)
 
     def __repr__(self) -> str:
-        if self.is_broadband:
-            wl_str = (
-                f"broadband [{self._wavelength[0]:.4g} … {self._wavelength[-1]:.4g}] m "
-                f"({len(self._wavelength)} points)"
-            )
+        if len(self.wavelengths) == 1:
+            wl_str = f"λ={self.wavelengths[0]:.4g} m"
         else:
-            wl_str = f"λ={self._wavelength:.4g} m"
+            wl_str = (
+                f"broadband [{self.wavelengths[0]:.4g} … {self.wavelengths[-1]:.4g}] m "
+                f"({len(self.wavelengths)} points)"
+            )
         return f"OptimizationTask({wl_str}, M={self.M})"
 
 
@@ -142,11 +117,11 @@ class SolverConfig:
         Retaining near-optimal solutions allows engineering trade-offs
         (cost, simplicity, mass) to be applied after the search. Default 1.
     aggregation : str or Callable
-        Broadband aggregation rule — how per-wavelength F values are
-        combined into a single scalar for ranking.
+        Aggregation rule — how per-wavelength F values are combined into
+        a single scalar for ranking. Always applied, single-wavelength
+        tasks included.
         Built-in strings: ``'mean'`` (default), ``'max'``, ``'sum'``.
         Custom: any callable ``f(values: np.ndarray) → float``.
-        Ignored in single-frequency mode.
     progress : bool
         Show a progress bar (tqdm if available, else plain percentage).
         Useful for large search spaces where the sweep can take minutes.

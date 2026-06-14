@@ -36,7 +36,7 @@ def simple_space(n_thickness_steps: int = 3) -> SearchSpace:
 
 def single_wavelength_task(wl: float = 0.03) -> OptimizationTask:
     return OptimizationTask(
-        wavelength=wl,
+        wavelengths=wl,
         angles=ANGLES_COARSE,
         functional=BACKSCATTER,
     )
@@ -53,54 +53,43 @@ def quiet_solver(**kwargs) -> BruteForceSolver:
 class TestOptimizationTask:
 
     def test_single_wavelength_scalar(self):
-        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=BACKSCATTER)
-        assert not task.is_broadband
-        assert task.wavelength == 0.03
+        task = OptimizationTask(wavelengths=0.03, angles=ANGLES_COARSE, functional=BACKSCATTER)
+        assert isinstance(task.wavelengths, np.ndarray)
+        assert task.wavelengths.tolist() == [0.03]
 
-    def test_single_wavelength_array_length1(self):
+    def test_single_wavelength_array_length1_preserved(self):
         task = OptimizationTask(
-            wavelength=np.array([0.03]),
+            wavelengths=np.array([0.03]),
             angles=ANGLES_COARSE,
             functional=BACKSCATTER,
         )
-        assert not task.is_broadband
-        assert task.wavelength == 0.03
+        assert task.wavelengths.tolist() == [0.03]
 
     def test_broadband_array(self):
         wls = np.linspace(0.01, 0.05, 10)
-        task = OptimizationTask(wavelength=wls, angles=ANGLES_COARSE, functional=BACKSCATTER)
-        assert task.is_broadband
+        task = OptimizationTask(wavelengths=wls, angles=ANGLES_COARSE, functional=BACKSCATTER)
         assert len(task.wavelengths) == 10
 
-    def test_broadband_raises_on_wavelength_property(self):
-        task = OptimizationTask(
-            wavelength=np.linspace(0.01, 0.05, 5),
-            angles=ANGLES_COARSE,
-            functional=BACKSCATTER,
-        )
-        with pytest.raises(AttributeError):
-            _ = task.wavelength
-
     def test_wavelengths_always_array(self):
-        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=BACKSCATTER)
+        task = OptimizationTask(wavelengths=0.03, angles=ANGLES_COARSE, functional=BACKSCATTER)
         assert isinstance(task.wavelengths, np.ndarray)
         assert len(task.wavelengths) == 1
 
     def test_M_equals_len_angles(self):
-        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=BACKSCATTER)
+        task = OptimizationTask(wavelengths=0.03, angles=ANGLES_COARSE, functional=BACKSCATTER)
         assert task.M == len(ANGLES_COARSE)
 
     def test_invalid_wavelength_zero_raises(self):
         with pytest.raises(ValueError):
-            OptimizationTask(wavelength=0.0, angles=ANGLES_COARSE, functional=BACKSCATTER)
+            OptimizationTask(wavelengths=0.0, angles=ANGLES_COARSE, functional=BACKSCATTER)
 
     def test_invalid_wavelength_negative_raises(self):
         with pytest.raises(ValueError):
-            OptimizationTask(wavelength=-0.01, angles=ANGLES_COARSE, functional=BACKSCATTER)
+            OptimizationTask(wavelengths=-0.01, angles=ANGLES_COARSE, functional=BACKSCATTER)
 
     def test_empty_angles_raises(self):
         with pytest.raises(ValueError):
-            OptimizationTask(wavelength=0.03, angles=np.array([]), functional=BACKSCATTER)
+            OptimizationTask(wavelengths=0.03, angles=np.array([]), functional=BACKSCATTER)
 
     def test_repr_single(self):
         task = single_wavelength_task()
@@ -110,7 +99,7 @@ class TestOptimizationTask:
 
     def test_repr_broadband(self):
         task = OptimizationTask(
-            wavelength=np.linspace(0.01, 0.05, 5),
+            wavelengths=np.linspace(0.01, 0.05, 5),
             angles=ANGLES_COARSE,
             functional=BACKSCATTER,
         )
@@ -314,7 +303,7 @@ class TestBruteForceSolverBroadband:
 
     def _bb_task(self, n=3):
         return OptimizationTask(
-            wavelength=np.linspace(0.02, 0.04, n),
+            wavelengths=np.linspace(0.02, 0.04, n),
             angles=ANGLES_COARSE,
             functional=BACKSCATTER,
         )
@@ -415,7 +404,7 @@ class TestBruteForceSolverValidation:
         def boom(S_th, S_ph, angles):
             raise KeyError("functional bug")
 
-        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=boom)
+        task = OptimizationTask(wavelengths=0.03, angles=ANGLES_COARSE, functional=boom)
         with pytest.raises(RuntimeError) as exc:
             quiet_solver().run(simple_space(3), task)
         assert isinstance(exc.value.__cause__, KeyError)
@@ -443,7 +432,7 @@ class TestBruteForceSolverValidation:
                 return float("nan")
             return float(np.abs(S_th[0]) ** 2)
 
-        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=nan_functional)
+        task = OptimizationTask(wavelengths=0.03, angles=ANGLES_COARSE, functional=nan_functional)
         result = quiet_solver().run(space, task)
         assert result.n_skipped == 1
         assert np.isfinite(result.best[0][0])
@@ -459,6 +448,25 @@ class TestBruteForceSolverValidation:
                 return float("inf")
             return float(np.abs(S_th[0]) ** 2)
 
-        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=inf_functional)
+        task = OptimizationTask(wavelengths=0.03, angles=ANGLES_COARSE, functional=inf_functional)
         result = quiet_solver().run(simple_space(2), task)
         assert result.n_skipped == 1
+
+    def test_custom_aggregation_applied_to_length1_array(self):
+        from core.sphere_difraction import calculate_S
+
+        space = simple_space(3)
+        task = OptimizationTask(
+            wavelengths=np.array([0.03]),
+            angles=ANGLES_COARSE,
+            functional=BACKSCATTER,
+        )
+        solver = BruteForceSolver(
+            SolverConfig(progress=False, aggregation=lambda v: float(v[0] * 10.0))
+        )
+        result = solver.run(space, task)
+
+        best_f, best_body = result.best[0]
+        S_th, S_ph = calculate_S(best_body, task.to_observation())
+        raw = BACKSCATTER(S_th[0], S_ph[0], task.angles)
+        assert best_f == pytest.approx(raw * 10.0, rel=1e-9)

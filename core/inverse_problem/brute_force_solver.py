@@ -139,10 +139,6 @@ class BruteForceSolver(Solver):
 def _evaluate(body, observation, angles, functional, config):
     S_th, S_ph = calculate_S(body, observation)
     n_wl = S_th.shape[0]
-
-    if n_wl == 1:
-        return float(functional(S_th[0], S_ph[0], angles))
-
     per_wl = np.array(
         [functional(S_th[i], S_ph[i], angles) for i in range(n_wl)],
         dtype=np.float64,
