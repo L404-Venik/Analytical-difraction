@@ -72,15 +72,8 @@ class BruteForceSolver(Solver):
         n_skipped = 0
         t_start = time.perf_counter()
 
-        iterator = space.iter_candidates()
-        if config.progress:
-            if _TQDM_AVAILABLE:
-                iterator = tqdm(iterator, total=size_hint, unit="cand", desc="Searching")
-            else:
-                _print_progress_start(size_hint)
-
         is_first = True
-        for body in iterator:
+        for body in _with_progress(space.iter_candidates(), size_hint, config.progress):
             if is_first:
                 is_first = False
                 try:
@@ -99,9 +92,6 @@ class BruteForceSolver(Solver):
 
             n_evaluated += 1
 
-            if config.progress and not _TQDM_AVAILABLE:
-                _print_progress_tick(n_evaluated, size_hint)
-
             if len(top) < config.n_best:
                 top.append((f_value, body))
                 top.sort(key=lambda x: x[0])
@@ -110,16 +100,11 @@ class BruteForceSolver(Solver):
                 top.sort(key=lambda x: x[0])
 
         if is_first:
-            if config.progress and not _TQDM_AVAILABLE:
-                print()
             raise ValueError(
                 "search space produced no candidates — check filters / max_total_thickness"
             )
 
         elapsed = time.perf_counter() - t_start
-
-        if config.progress and not _TQDM_AVAILABLE:
-            print()
 
         return SolverResult(
             best=top,
@@ -146,21 +131,25 @@ def _evaluate(body, observation, angles, functional, config):
     return config._aggregate(per_wl)
 
 
-# --- Fallback progress (no tqdm) ---
+# --- Progress reporting ---
 
-_progress_last_pct = -1
-
-def _print_progress_start(total: int) -> None:
-    global _progress_last_pct
-    _progress_last_pct = -1
-    print(f"Searching ~{total:,} candidates ", end="", flush=True)
-
-
-def _print_progress_tick(n: int, total: int) -> None:
-    global _progress_last_pct
-    if total <= 0:
+def _with_progress(iterable, total: int, enabled: bool):
+    if not enabled:
+        yield from iterable
         return
-    pct = int(100 * n / total)
-    if pct >= _progress_last_pct + 10:
-        print(f"{pct}%.. ", end="", flush=True)
-        _progress_last_pct = pct
+    if _TQDM_AVAILABLE:
+        yield from tqdm(iterable, total=total, unit="cand", desc="Searching")
+        return
+
+    last_pct = -1
+    n = 0
+    print(f"Searching ~{total:,} candidates ", end="", flush=True)
+    for item in iterable:
+        yield item
+        n += 1
+        if total > 0:
+            pct = int(100 * n / total)
+            if pct >= last_pct + 10:
+                print(f"{pct}%.. ", end="", flush=True)
+                last_pct = pct
+    print()
