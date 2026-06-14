@@ -197,7 +197,8 @@ class SolverResult:
     n_evaluated : int
         Number of candidates actually evaluated.
     n_skipped : int
-        Candidates skipped due to errors (e.g. unsupported ContinuousRange).
+        Number of candidates whose objective was non-finite (NaN/inf) and
+        excluded from ranking.
     elapsed_seconds : float
         Wall-clock time for the entire search.
     """

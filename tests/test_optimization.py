@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from core.parameters import BodyParameters, ObservationParameters
-from core.inverse_problem.search_space import (DiscreteRange, Layer, SearchSpace)
+from core.inverse_problem.search_space import (ContinuousRange, DiscreteRange, Layer, SearchSpace)
 from core.inverse_problem.optimization import (OptimizationTask, SolverConfig, SolverResult)
 from core.inverse_problem.brute_force_solver import (BruteForceSolver)
 
@@ -380,3 +380,85 @@ class TestBruteForceSolverUpTo:
         )
         result = quiet_solver().run(space, single_wavelength_task())
         assert result.n_evaluated > 0
+
+
+# ===========================================================================
+# BruteForceSolver.run() — boundary validation
+# ===========================================================================
+
+class TestBruteForceSolverValidation:
+
+    def test_continuous_range_raises_at_entry(self):
+        space = SearchSpace(
+            core_radius=0.01,
+            layers=[Layer(thickness=ContinuousRange(0.001, 0.005), material=None)],
+            materials=MATS,
+            conducting_core=True,
+            eps_outer=1.0 + 0j,
+        )
+        with pytest.raises(TypeError, match="Layer 0"):
+            quiet_solver().run(space, single_wavelength_task())
+
+    def test_empty_space_raises(self):
+        mats = {"air": 1.0 + 0j}
+        space = SearchSpace(
+            core_radius=0.01,
+            layers=[Layer(0.002, "air")],
+            materials=mats,
+            conducting_core=True,
+            eps_outer=1.0 + 0j,
+        )
+        with pytest.raises(ValueError, match="no candidates"):
+            quiet_solver().run(space, single_wavelength_task())
+
+    def test_probe_failure_raises_runtime_error_with_cause(self):
+        def boom(S_th, S_ph, angles):
+            raise KeyError("functional bug")
+
+        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=boom)
+        with pytest.raises(RuntimeError) as exc:
+            quiet_solver().run(simple_space(3), task)
+        assert isinstance(exc.value.__cause__, KeyError)
+
+    def test_nan_candidate_excluded_and_best_correct(self):
+        from core.sphere_difraction import calculate_S
+
+        space = simple_space(3)
+        task = single_wavelength_task()
+        obs = task.to_observation()
+        clean = []
+        for b in space:
+            S_th, S_ph = calculate_S(b, obs)
+            clean.append(BACKSCATTER(S_th[0], S_ph[0], task.angles))
+
+        poison_idx = 1
+        expected_best = min(f for i, f in enumerate(clean) if i != poison_idx)
+
+        state = {"calls": 0}
+
+        def nan_functional(S_th, S_ph, angles):
+            idx = state["calls"]
+            state["calls"] += 1
+            if idx == poison_idx:
+                return float("nan")
+            return float(np.abs(S_th[0]) ** 2)
+
+        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=nan_functional)
+        result = quiet_solver().run(space, task)
+        assert result.n_skipped == 1
+        assert np.isfinite(result.best[0][0])
+        assert result.best[0][0] == pytest.approx(expected_best, rel=1e-9)
+
+    def test_inf_candidate_counted_in_skipped(self):
+        state = {"calls": 0}
+
+        def inf_functional(S_th, S_ph, angles):
+            idx = state["calls"]
+            state["calls"] += 1
+            if idx == 1:
+                return float("inf")
+            return float(np.abs(S_th[0]) ** 2)
+
+        task = OptimizationTask(wavelength=0.03, angles=ANGLES_COARSE, functional=inf_functional)
+        result = quiet_solver().run(simple_space(2), task)
+        assert result.n_skipped == 1

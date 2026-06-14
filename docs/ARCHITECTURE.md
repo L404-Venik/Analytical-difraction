@@ -49,18 +49,18 @@ which internally builds an `ObservationParameters` to drive `calculate_S`.
 ### `optimization.py` — shared data types
 - **`OptimizationTask`** — what to optimize: wavelength(s), angles array, and `functional(S_th, S_ph, angles) → float`. Supports single-frequency and broadband mode. Builds an `ObservationParameters` for the solver. Broadband tasks evaluate the functional once per wavelength and aggregate the results.
 - **`SolverConfig`** — controls `n_best` (how many top candidates to return), `aggregation` rule for broadband (`mean`/`max`/`sum`/custom callable), and `progress` flag.
-- **`SolverResult`** — output: `best` (list of `(F, BodyParameters)` sorted ascending), `n_evaluated`, `n_skipped`, `elapsed_seconds`.
+- **`SolverResult`** — output: `best` (list of `(F, BodyParameters)` sorted ascending), `n_evaluated`, `n_skipped` (count of candidates whose objective was non-finite, NaN/inf, and excluded from ranking), `elapsed_seconds`.
 
 ### `solver_base.py`
 Abstract `Solver` base class. One method to implement: `run(space, task) → SolverResult`.
 
 ### `search_space.py`
 - **`DiscreteRange`** / **`ContinuousRange`** — thickness axis types for layer specs.
-- **`Layer`** — one coating layer with `thickness` (fixed float / `DiscreteRange` / `ContinuousRange`) and `material` (fixed name / list of names / `None` = all materials).
-- **`SearchSpace`** — full discrete parameter space. Defines core + list of layers + material library. `iter_candidates()` yields `BodyParameters` (no wavelength) using `itertools.product`; filters out same-adjacent-material combos and thickness budget violations. Supports `up_to=True` to search 1..N layer counts. `size_estimate()` gives an upper bound before filtering.
+- **`Layer`** — one coating layer with `thickness` (fixed float / `DiscreteRange` / `ContinuousRange`) and `material` (fixed name / list of names / `None` = all materials). Validates and coerces both at construction: a fixed thickness is coerced to `float` and must be `> 0`; `material` must be `str`/`list[str]`/`None`, a list must be non-empty, and duplicates are dropped (order preserved) with a `UserWarning`.
+- **`SearchSpace`** — full discrete parameter space. Defines core + list of layers + material library. `iter_candidates()` yields `BodyParameters` (no wavelength) using `itertools.product`; filters by **eps value** (not material name): drops candidates whose first layer matches the core, whose adjacent layers match each other, or whose last layer matches the outer medium, plus thickness budget violations. Supports `up_to=True` to search 1..N layer counts. `size_estimate()` gives an upper bound before filtering. `validate_discrete()` raises if any layer thickness is a `ContinuousRange`.
 
 ### `brute_force_solver.py`
-**`BruteForceSolver`** — iterates every candidate body from `SearchSpace`, evaluates the functional against the task's observation, keeps top-N. Falls back to a plain percentage counter when tqdm is absent. Single-threaded.
+**`BruteForceSolver`** — iterates every candidate body from `SearchSpace`, evaluates the functional against the task's observation, keeps top-N. Validates discreteness at `run()` entry (`space.validate_discrete()`), raises `ValueError` if the space produces no candidates, and probes the first candidate so a buggy functional surfaces as a `RuntimeError` rather than being swallowed; in the sweep only non-finite objectives are skipped (counted in `n_skipped`). Falls back to a plain percentage counter when tqdm is absent. Single-threaded.
 
 ## Tests (`tests/`)
 

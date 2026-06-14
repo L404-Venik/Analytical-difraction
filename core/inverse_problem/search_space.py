@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import warnings
 from dataclasses import dataclass
 from typing import Iterator, Optional, Union
 import numpy as np
@@ -72,6 +73,35 @@ class Layer:
     """
     thickness: ThicknessSpec
     material:  MaterialSpec = None
+
+    def __post_init__(self):
+        if isinstance(self.thickness, bool):
+            raise TypeError(f"thickness must be a number or Range, got bool {self.thickness!r}")
+        if isinstance(self.thickness, int):
+            self.thickness = float(self.thickness)
+        if isinstance(self.thickness, float) and self.thickness <= 0:
+            raise ValueError(f"fixed thickness must be > 0, got {self.thickness}")
+
+        if isinstance(self.material, str) or self.material is None:
+            return
+        if not isinstance(self.material, list):
+            raise TypeError(
+                f"material must be str, list[str], or None, got {type(self.material).__name__}"
+            )
+        if len(self.material) == 0:
+            raise ValueError("material list must not be empty.")
+
+        deduped: list[str] = []
+        dropped: list[str] = []
+        for name in self.material:
+            if not isinstance(name, str):
+                raise TypeError(
+                    f"material list elements must be str, got {type(name).__name__}: {name!r}"
+                )
+            (dropped if name in deduped else deduped).append(name)
+        if dropped:
+            warnings.warn(f"duplicate materials removed from layer spec: {dropped}", UserWarning)
+        self.material = deduped
 
     def _thickness_values(self) -> list[float]:
         if isinstance(self.thickness, float):
@@ -193,6 +223,15 @@ class SearchSpace:
                             f"Available: {list(self.materials.keys())}"
                         )
 
+    def validate_discrete(self) -> None:
+        """Raise if any layer's thickness cannot be enumerated discretely."""
+        for i, layer in enumerate(self.layers):
+            if isinstance(layer.thickness, ContinuousRange):
+                raise TypeError(
+                    f"Layer {i}: ContinuousRange has no discrete values; "
+                    f"convert to DiscreteRange or use a continuous optimizer."
+                )
+
     # ------------------------------------------------------------------
     # Iteration
     # ------------------------------------------------------------------
@@ -218,12 +257,10 @@ class SearchSpace:
             # combination: tuple of (thickness, material_name), one per layer
 
             # --- Check consecutive same-material constraint (by eps value) ---
-            # Two layers with identical eps create a phantom interface — no physical
-            # meaning and the solver treats them as one layer anyway.
             materials_chosen = [c[1] for c in combination]
             eps_chosen = [self.materials[name] for name in materials_chosen]
 
-            # First layer vs core (skip if conducting — core has no eps to compare)
+            # First layer vs core
             if not self.conducting_core:
                 if eps_chosen[0] == self.core_material:
                     continue
@@ -255,8 +292,6 @@ class SearchSpace:
 
             # eps: [core_eps, layer1_eps, layer2_eps, ..., eps_outer]
             if self.conducting_core:
-                # eps[0] is required by BodyParameters but unused for a conducting
-                # core; 1.0 is a placeholder the solver ignores.
                 eps = [1.0 + 0j]
             else:
                 eps = [self.core_material]

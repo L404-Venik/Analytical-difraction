@@ -204,6 +204,78 @@ class TestLayer:
 
 
 # ===========================================================================
+# Layer — construction validation
+# ===========================================================================
+
+class TestLayerValidation:
+
+    def test_int_thickness_coerced_to_float(self):
+        layer = Layer(thickness=5, material="a")
+        assert isinstance(layer.thickness, float)
+        assert layer.thickness == 5.0
+
+    def test_int_thickness_space_runs(self):
+        space = make_space(layers=[Layer(thickness=5, material="a")])
+        assert len(list(space)) == 1
+
+    def test_bool_thickness_raises(self):
+        with pytest.raises(TypeError):
+            Layer(thickness=True, material="a")
+
+    def test_negative_thickness_raises(self):
+        with pytest.raises(ValueError):
+            Layer(thickness=-1.0, material="a")
+
+    def test_zero_thickness_raises(self):
+        with pytest.raises(ValueError):
+            Layer(thickness=0.0, material="a")
+
+    def test_empty_material_list_raises(self):
+        with pytest.raises(ValueError):
+            Layer(thickness=0.01, material=[])
+
+    def test_non_str_material_element_raises(self):
+        with pytest.raises(TypeError):
+            Layer(thickness=0.01, material=["a", 1])
+
+    def test_non_str_non_list_material_raises(self):
+        with pytest.raises(TypeError):
+            Layer(thickness=0.01, material=123)  # type: ignore
+
+    def test_duplicate_materials_deduped_with_warning(self):
+        with pytest.warns(UserWarning):
+            layer = Layer(thickness=0.01, material=["a", "a", "b"])
+        assert layer.material == ["a", "b"]
+
+
+# ===========================================================================
+# SearchSpace — validate_discrete
+# ===========================================================================
+
+class TestSearchSpaceValidateDiscrete:
+
+    def test_continuous_range_first_layer_raises(self):
+        space = make_space(
+            layers=[Layer(thickness=ContinuousRange(0.001, 0.01), material="a")],
+        )
+        with pytest.raises(TypeError, match="Layer 0"):
+            space.validate_discrete()
+
+    def test_continuous_range_second_layer_names_index(self):
+        space = make_space(
+            layers=[
+                Layer(0.01, "a"),
+                Layer(thickness=ContinuousRange(0.001, 0.01), material="b"),
+            ],
+        )
+        with pytest.raises(TypeError, match="Layer 1"):
+            space.validate_discrete()
+
+    def test_all_discrete_passes(self):
+        make_space().validate_discrete()
+
+
+# ===========================================================================
 # SearchSpace — construction and validation
 # ===========================================================================
 

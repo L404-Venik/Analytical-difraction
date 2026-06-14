@@ -7,6 +7,7 @@ functional, and returns the n_best scoring structures.
 
 from __future__ import annotations
 
+import math
 import time
 
 import numpy as np
@@ -60,6 +61,8 @@ class BruteForceSolver(Solver):
         ``calculate_S(body, task.to_observation())``.
         """
         config = self.config
+        space.validate_discrete()
+
         observation = task.to_observation()
         angles = task.angles
         size_hint = space.size_estimate()
@@ -76,10 +79,21 @@ class BruteForceSolver(Solver):
             else:
                 _print_progress_start(size_hint)
 
+        is_first = True
         for body in iterator:
-            try:
+            if is_first:
+                is_first = False
+                try:
+                    f_value = _evaluate(body, observation, angles, task.functional, config)
+                except Exception as e:
+                    raise RuntimeError(
+                        f"objective failed on first candidate {body.create_label('eps')!r}; "
+                        f"likely a bug in the functional, not the search"
+                    ) from e
+            else:
                 f_value = _evaluate(body, observation, angles, task.functional, config)
-            except Exception:
+
+            if not math.isfinite(f_value):
                 n_skipped += 1
                 continue
 
@@ -94,6 +108,13 @@ class BruteForceSolver(Solver):
             elif f_value < top[-1][0]:
                 top[-1] = (f_value, body)
                 top.sort(key=lambda x: x[0])
+
+        if is_first:
+            if config.progress and not _TQDM_AVAILABLE:
+                print()
+            raise ValueError(
+                "search space produced no candidates — check filters / max_total_thickness"
+            )
 
         elapsed = time.perf_counter() - t_start
 
