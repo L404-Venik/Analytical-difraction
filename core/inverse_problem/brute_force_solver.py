@@ -144,12 +144,14 @@ def _with_progress(iterable, total: int, enabled: bool):
     last_pct = -1
     n = 0
     print(f"Searching ~{total:,} candidates ", end="", flush=True)
-    for item in iterable:
-        yield item
-        n += 1
-        if total > 0:
-            pct = int(100 * n / total)
-            if pct >= last_pct + 10:
-                print(f"{pct}%.. ", end="", flush=True)
-                last_pct = pct
-    print()
+    try:
+        for item in iterable:
+            yield item
+            n += 1
+            if total > 0:
+                pct = int(100 * n / total)
+                if pct >= last_pct + 10:
+                    print(f"{pct}%.. ", end="", flush=True)
+                    last_pct = pct
+    finally:
+        print()
