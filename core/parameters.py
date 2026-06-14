@@ -11,7 +11,7 @@ class BodyParameters:
 
     Fields:
       eps: array-like of relative permittivities (complex allowed). Length = num_layers + 1
-      r: array-like of radii for layer boundaries (meters). Length = num_layers
+      r: array-like of radii for layer boundaries. Length = num_layers
       conducting_core: whether core is conducting (bool)
       label: optional human-readable label
     """
@@ -25,7 +25,7 @@ class BodyParameters:
         self.r = np.asarray(self.r, dtype=np.float64)
 
         if self.r.ndim != 1:
-            raise ValueError("r must be a 1D sequence of radii (meters).")
+            raise ValueError("r must be a 1D sequence of radii.")
         if self.eps.ndim != 1:
             raise ValueError("eps must be a 1D sequence of permittivities (can be complex).")
         if len(self.eps) != len(self.r) + 1:
@@ -86,7 +86,7 @@ class ObservationParameters:
         if wl.ndim != 1 or len(wl) == 0:
             raise ValueError("wavelengths must be a scalar or a non-empty 1-D array.")
         if np.any(wl <= 0):
-            raise ValueError("All wavelengths must be > 0 (meters).")
+            raise ValueError("All wavelengths must be > 0.")
         self.wavelengths = wl
 
         angles = np.asarray(self.angles, dtype=np.float64)

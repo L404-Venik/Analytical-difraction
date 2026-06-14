@@ -2,7 +2,7 @@
 brute_force_solver.py — Exhaustive search over a discrete parameter space.
 
 Iterates every candidate in a SearchSpace, evaluates the objective
-functional, and returns the n_best lowest-scoring structures.
+functional, and returns the n_best scoring structures.
 """
 
 from __future__ import annotations
@@ -116,7 +116,6 @@ class BruteForceSolver(Solver):
 # ---------------------------------------------------------------------------
 
 def _evaluate(body, observation, angles, functional, config):
-    # One call covers all wavelengths: S_th, S_ph have shape (n_wavelengths, n_angles).
     S_th, S_ph = calculate_S(body, observation)
     n_wl = S_th.shape[0]
 

@@ -62,7 +62,7 @@ class Layer:
     """
     Specification for one coating layer.
 
-    thickness: float            — fixed thickness (meters)
+    thickness: float            — fixed thickness
                DiscreteRange    — grid of values to search
                ContinuousRange  — continuous interval (not iterable in discrete search)
 
@@ -124,7 +124,7 @@ class SearchSpace:
     Parameters
     ----------
     core_radius : float
-        Radius of the sphere core (meters).
+        Radius of the sphere core.
     layers : list[Layer]
         Layer specifications, ordered innermost → outermost.
         If up_to=True, defines the *maximum* layers; shorter stacks are also searched.
@@ -274,10 +274,6 @@ class SearchSpace:
     def iter_candidates(self) -> Iterator[BodyParameters]:
         """
         Iterate over all valid candidate bodies in the search space.
-
-        Yields wavelength-free BodyParameters. The observation setup
-        (wavelengths and angles) lives in the OptimizationTask and is coupled
-        to each body at evaluation time via calculate_S(body, observation).
         """
         n_max = len(self.layers)
         n_min = 1 if self.up_to else n_max

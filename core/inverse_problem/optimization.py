@@ -18,16 +18,11 @@ class OptimizationTask:
     """
     Describes what scattering property to optimize.
 
-    Decoupled from the physical body: the same task can be applied
-    to different search spaces.
-
     Parameters
     ----------
     wavelength : float or np.ndarray
-        Single wavelength (meters) for single-frequency optimization, or
+        Single wavelength for single-frequency optimization, or
         an array of wavelengths for broadband optimization.
-        Single-frequency solutions can degrade rapidly off-resonance;
-        broadband functionals produce more robust designs.
     angles : np.ndarray
         Angles (radians) at which S is evaluated, in [0, 2π).
         Typically ``np.linspace(0, 2*np.pi, M, endpoint=False)``.
