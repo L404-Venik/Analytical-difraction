@@ -26,7 +26,7 @@ pip install -e ".[dev]"
 
 ```python
 import numpy as np
-from sphere_diffraction import calculate_S, BodyParameters, ObservationParameters
+from analytical_diffraction import calculate_S, BodyParameters, ObservationParameters
 
 # A dielectric shell (eps = 2.1) on a conducting core, in air.
 body = BodyParameters(
@@ -45,9 +45,9 @@ S_th, S_ph = calculate_S(body, obs)   # each shape (n_wavelengths, n_angles)
 
 ```python
 import numpy as np
-from sphere_diffraction.inverse_problem.search_space import SearchSpace, Layer, DiscreteRange
-from sphere_diffraction.inverse_problem.optimization import OptimizationTask, SolverConfig
-from sphere_diffraction.inverse_problem.brute_force_solver import BruteForceSolver
+from analytical_diffraction.inverse_problem.search_space import SearchSpace, Layer, DiscreteRange
+from analytical_diffraction.inverse_problem.optimization import OptimizationTask, SolverConfig
+from analytical_diffraction.inverse_problem.brute_force_solver import BruteForceSolver
 
 materials = {"glass": 2.25 + 0j, "foam": 1.2 + 0j}   # name -> relative permittivity
 
@@ -71,11 +71,11 @@ best_F, best_body = result.best[0]
 
 ## Materials from a file
 
-`sphere_diffraction.materials.load_materials` reads a `{name: permittivity}` library from a CSV
+`analytical_diffraction.materials.load_materials` reads a `{name: permittivity}` library from a CSV
 of `name, eps_r, loss_tangent`, so materials can be edited without code:
 
 ```python
-from sphere_diffraction.materials import load_materials
+from analytical_diffraction.materials import load_materials
 
 materials = load_materials("examples/materials.csv")
 space = SearchSpace(core_radius=0.01, layers=[...], materials=materials)

@@ -12,8 +12,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "tests"))
 
 import numpy as np
-from sphere_diffraction.parameters import ObservationParameters
-from sphere_diffraction.sphere_diffraction import calculate_S
+from analytical_diffraction.parameters import ObservationParameters
+from analytical_diffraction.sphere import calculate_S
 from snapshot_configs import known_cases, SNAPSHOT_ANGLES
 
 SNAPSHOT_DIR = os.path.join(PROJECT_ROOT, "tests", "snapshots")

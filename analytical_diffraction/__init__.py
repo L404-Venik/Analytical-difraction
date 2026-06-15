@@ -1,5 +1,5 @@
 from .parameters import BodyParameters, ObservationParameters
-from .sphere_diffraction import calculate_S, calculate_electric_field_far, calculate_coefficients
+from .sphere import calculate_S, calculate_electric_field_far, calculate_coefficients
 
 __all__ = [
 	"BodyParameters",

@@ -15,7 +15,7 @@ so they inherit this assumption: results are physical only over a band where the
 materials' true permittivity varies negligibly. See the README's
 "Scope & limitations" for guidance.
 
-## Core (`sphere_diffraction/`)
+## Modules (`analytical_diffraction/`)
 
 ### `parameters.py`
 Three dataclasses, with a deliberate split between the **physical body** (invariant
@@ -26,7 +26,7 @@ across wavelength) and the **observation setup** (what/where we probe):
 
 There is no composite "experiment" type: an experiment is the *action* `calculate_S(body, observation)`, not a struct. This keeps the two lifetimes independent — e.g. the inverse solver sweeps many bodies against one fixed observation.
 
-### `sphere_diffraction.py`
+### `sphere.py`
 All direct-problem physics. Key functions:
 - `calculate_coefficients(body, k)` → `(D_e, D_m, N)` — Mie scattering coefficients via transfer-matrix method. Builds T-matrices layer by layer, applies inner boundary condition (conducting or dielectric core), stops when series converges. Takes an explicit scalar `k`.
 - `calculate_S(body, observation)` → `(S_th, S_ph)`, each shape `(n_wavelengths, n_angles)` — far-field scattering amplitudes at the given wavelengths and arbitrary angles. The angle axis is fully vectorized (matmul over the series); the wavelength loop is unavoidable (k-dependent), but the angle-dependent Legendre terms are computed once and reused across wavelengths. θ=0 and θ=π are handled by asymptotic formulas via boolean masks (the general term is singular there) — automatic and invisible to the caller. No mirror-symmetry optimization: every angle is computed directly, so `S(2π−θ) = −S(θ)` holds as true physics rather than a copied half.
@@ -40,7 +40,7 @@ Matplotlib wrappers for visualizing scattering patterns.
 ### `materials.py`
 Material-library helpers. `lossy_eps(eps_r, loss_tangent)` converts a real relative permittivity and loss tangent to the complex permittivity the solver uses, with a `+i` lossy convention (`eps = eps_r·(1 + i·tanδ)`). `load_materials(path)` parses a CSV of `name, eps_r, loss_tangent` rows (extra columns like `source`/`valid_band` ignored) into the `{name: complex}` dict that `SearchSpace` consumes, validating names and ranges with line-numbered errors. The parser is regime-agnostic; an example library ships at `examples/materials.csv`.
 
-## Inverse Problem (`sphere_diffraction/inverse_problem/`)
+## Inverse Problem (`analytical_diffraction/inverse_problem/`)
 
 Framework for finding sphere structures whose scattering matches a target functional.
 The search produces **bodies**; the wavelengths and angles to probe live in the task,

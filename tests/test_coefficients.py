@@ -1,8 +1,8 @@
 # test_coefficients.py
 import numpy as np
 import pytest
-from sphere_diffraction.parameters import (BodyParameters)
-from sphere_diffraction.sphere_diffraction import (calculate_coefficients)
+from analytical_diffraction.parameters import (BodyParameters)
+from analytical_diffraction.sphere import (calculate_coefficients)
 
 
 def make_body_k(eps_inner, eps_outer, r=0.1, wl=1.0, **kwargs):

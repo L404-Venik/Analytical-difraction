@@ -1,13 +1,13 @@
 # test_search_space.py — Complete test suite for search_space.py
 import pytest
 import numpy as np
-from sphere_diffraction.inverse_problem.search_space import (
+from analytical_diffraction.inverse_problem.search_space import (
     DiscreteRange,
     ContinuousRange,
     Layer,
     SearchSpace,
 )
-from sphere_diffraction.parameters import BodyParameters
+from analytical_diffraction.parameters import BodyParameters
 
 
 # ---------------------------------------------------------------------------

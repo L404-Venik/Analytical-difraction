@@ -1,8 +1,8 @@
 # test_diffraction.py
 import numpy as np
 import pytest
-from sphere_diffraction.parameters import (BodyParameters, ObservationParameters)
-from sphere_diffraction.sphere_diffraction import (calculate_S)
+from analytical_diffraction.parameters import (BodyParameters, ObservationParameters)
+from analytical_diffraction.sphere import (calculate_S)
 
 WL = 1.0
 

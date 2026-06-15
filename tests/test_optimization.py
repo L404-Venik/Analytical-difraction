@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from sphere_diffraction.parameters import BodyParameters, ObservationParameters
-from sphere_diffraction.inverse_problem.search_space import (ContinuousRange, DiscreteRange, Layer, SearchSpace)
-from sphere_diffraction.inverse_problem.optimization import (OptimizationTask, SolverConfig, SolverResult)
-from sphere_diffraction.inverse_problem.brute_force_solver import (BruteForceSolver)
+from analytical_diffraction.parameters import BodyParameters, ObservationParameters
+from analytical_diffraction.inverse_problem.search_space import (ContinuousRange, DiscreteRange, Layer, SearchSpace)
+from analytical_diffraction.inverse_problem.optimization import (OptimizationTask, SolverConfig, SolverResult)
+from analytical_diffraction.inverse_problem.brute_force_solver import (BruteForceSolver)
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +234,7 @@ class TestBruteForceSolverSingleWavelength:
 
     def test_best_body_reproduces_f(self):
         """The stored F can be recovered from the body via task.to_observation()."""
-        from sphere_diffraction.sphere_diffraction import calculate_S
+        from analytical_diffraction.sphere import calculate_S
         task = single_wavelength_task()
         result = quiet_solver().run(simple_space(3), task)
         best_f, best_body = result.best[0]
@@ -252,7 +252,7 @@ class TestBruteForceSolverSingleWavelength:
 
     def test_best_is_global_minimum(self):
         """Verify independently that the returned F is the true minimum."""
-        from sphere_diffraction.sphere_diffraction import (calculate_S)
+        from analytical_diffraction.sphere import (calculate_S)
         space = simple_space(4)
         task = single_wavelength_task()
         obs = task.to_observation()
@@ -410,7 +410,7 @@ class TestBruteForceSolverValidation:
         assert isinstance(exc.value.__cause__, KeyError)
 
     def test_nan_candidate_excluded_and_best_correct(self):
-        from sphere_diffraction.sphere_diffraction import calculate_S
+        from analytical_diffraction.sphere import calculate_S
 
         space = simple_space(3)
         task = single_wavelength_task()
@@ -453,7 +453,7 @@ class TestBruteForceSolverValidation:
         assert result.n_skipped == 1
 
     def test_custom_aggregation_applied_to_length1_array(self):
-        from sphere_diffraction.sphere_diffraction import calculate_S
+        from analytical_diffraction.sphere import calculate_S
 
         space = simple_space(3)
         task = OptimizationTask(

@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sphere-diffraction"
+name = "analytical-diffraction"
 version = "0.1.0"
 description = "Mie-theory electromagnetic scattering simulation and inverse design of multilayer spheres."
 readme = "README.md"
@@ -15,4 +15,4 @@ progress = ["tqdm"]
 dev = ["pytest", "tqdm"]
 
 [tool.setuptools.packages.find]
-include = ["sphere_diffraction*"]
+include = ["analytical_diffraction*"]
