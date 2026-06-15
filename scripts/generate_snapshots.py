@@ -9,11 +9,11 @@ import os
 import sys
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "tests"))
 
 import numpy as np
-from core.parameters import ObservationParameters
-from core.sphere_difraction import calculate_S
+from sphere_diffraction.parameters import ObservationParameters
+from sphere_diffraction.sphere_diffraction import calculate_S
 from snapshot_configs import known_cases, SNAPSHOT_ANGLES
 
 SNAPSHOT_DIR = os.path.join(PROJECT_ROOT, "tests", "snapshots")

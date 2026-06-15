@@ -16,18 +16,17 @@ scattering matches a target.
 
 ```bash
 git clone <repo-url>
-cd Sphere-difraction
+cd Sphere-difraction              # the repo folder
 python -m venv .venv
 .venv\Scripts\activate        # Windows;  source .venv/bin/activate on Unix
-pip install numpy scipy matplotlib tqdm
+pip install -e ".[dev]"
 ```
 
 ## Quickstart — forward problem
 
 ```python
 import numpy as np
-from core.parameters import BodyParameters, ObservationParameters
-from core.sphere_difraction import calculate_S
+from sphere_diffraction import calculate_S, BodyParameters, ObservationParameters
 
 # A dielectric shell (eps = 2.1) on a conducting core, in air.
 body = BodyParameters(
@@ -46,9 +45,9 @@ S_th, S_ph = calculate_S(body, obs)   # each shape (n_wavelengths, n_angles)
 
 ```python
 import numpy as np
-from core.inverse_problem.search_space import SearchSpace, Layer, DiscreteRange
-from core.inverse_problem.optimization import OptimizationTask, SolverConfig
-from core.inverse_problem.brute_force_solver import BruteForceSolver
+from sphere_diffraction.inverse_problem.search_space import SearchSpace, Layer, DiscreteRange
+from sphere_diffraction.inverse_problem.optimization import OptimizationTask, SolverConfig
+from sphere_diffraction.inverse_problem.brute_force_solver import BruteForceSolver
 
 materials = {"glass": 2.25 + 0j, "foam": 1.2 + 0j}   # name -> relative permittivity
 
@@ -72,11 +71,11 @@ best_F, best_body = result.best[0]
 
 ## Materials from a file
 
-`core.materials.load_materials` reads a `{name: permittivity}` library from a CSV
+`sphere_diffraction.materials.load_materials` reads a `{name: permittivity}` library from a CSV
 of `name, eps_r, loss_tangent`, so materials can be edited without code:
 
 ```python
-from core.materials import load_materials
+from sphere_diffraction.materials import load_materials
 
 materials = load_materials("examples/materials.csv")
 space = SearchSpace(core_radius=0.01, layers=[...], materials=materials)

@@ -4,7 +4,7 @@ and the snapshot test suite.
 """
 import numpy as np
 import scipy.constants as const
-from core.parameters import BodyParameters
+from sphere_diffraction.parameters import BodyParameters
 
 c = const.speed_of_light
 

@@ -2,7 +2,7 @@
 import numpy as np
 import re
 import pytest
-from core.parameters import (ObservationParameters)
+from sphere_diffraction.parameters import (ObservationParameters)
 import scipy.constants as const
 c = const.speed_of_light
 

@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from core.materials import lossy_eps, load_materials
-from core.inverse_problem.search_space import SearchSpace, Layer, DiscreteRange
+from sphere_diffraction.materials import lossy_eps, load_materials
+from sphere_diffraction.inverse_problem.search_space import SearchSpace, Layer, DiscreteRange
 
 EXAMPLE_CSV = Path(__file__).resolve().parent.parent / "examples" / "materials.csv"
 

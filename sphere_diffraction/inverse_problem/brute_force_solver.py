@@ -15,7 +15,7 @@ import numpy as np
 from .optimization import OptimizationTask, SolverConfig, SolverResult
 from .search_space import SearchSpace
 from .solver_base import Solver
-from ..sphere_difraction import calculate_S
+from ..sphere_diffraction import calculate_S
 
 try:
     from tqdm import tqdm

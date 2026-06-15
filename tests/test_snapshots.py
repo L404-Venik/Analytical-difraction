@@ -1,8 +1,8 @@
 import os
 import numpy as np
 import pytest
-from core.parameters import ObservationParameters
-from core.sphere_difraction import calculate_S
+from sphere_diffraction.parameters import ObservationParameters
+from sphere_diffraction.sphere_diffraction import calculate_S
 from snapshot_configs import known_cases, SNAPSHOT_ANGLES, SNAPSHOT_M
 
 SNAPSHOT_DIR = os.path.join(os.path.dirname(__file__), "snapshots")

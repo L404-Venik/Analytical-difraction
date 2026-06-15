@@ -2,7 +2,7 @@
 import numpy as np
 import re
 import pytest
-from core.parameters import (BodyParameters)
+from sphere_diffraction.parameters import (BodyParameters)
 
 
 # ── Constructor / normalization ───────────────────────────────────────────────

@@ -2,7 +2,7 @@
 # test_special.py
 import numpy as np
 import pytest
-from core.sphere_difraction import (xi, xi_derivative, psi, psi_derivative)
+from sphere_diffraction.sphere_diffraction import (xi, xi_derivative, psi, psi_derivative)
 
 @pytest.mark.parametrize("n", [0, 1, 2, 5, 10])
 @pytest.mark.parametrize("x", [0.1, 1.0, 5.0, 20.0])

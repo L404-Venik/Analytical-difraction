@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.constants as const
-import core.parameters as Param
+from . import parameters as Param
 c = const.speed_of_light
 
 def plot_field_scaterring(S_th, S_ph = None, PlotParam = None, Polarization = None):
