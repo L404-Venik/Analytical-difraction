@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QApplication
 from .application.controller import AppController
 from .ui.main_window import MainWindow
 
-APP_USER_MODEL_ID = "sphere-diffraction.gui"
+APP_USER_MODEL_ID = "SphereDiffraction.GUI.1"
 
 
 def load_icon() -> QIcon:
