@@ -124,6 +124,10 @@ It is a repo-level package (not part of the installable wheel); run it with
   (JSON presets), Settings, Help/About, status bar (computing/elapsed/error).
   Persists window geometry, plot layout, theme, and fonts via `QSettings`.
 
+`app/resources/` holds the generated icon set (`icon_<size>.png` + `icon.ico`);
+`app/__main__.py` loads it into the application icon and sets the Windows
+AppUserModelID so the taskbar shows it instead of the Python launcher's icon.
+
 Data flow: panel edit → `parameters_changed` → controller debounce → cache or
 worker thread → `result_ready` → every plot cell redraws.
 
@@ -148,6 +152,7 @@ pytest suite covering:
 ## Scripts
 
 - **`scripts/generate_snapshots.py`** — re-captures `S_th`/`S_ph` snapshots into `tests/snapshots/*.npz`. Run when results have intentionally changed.
+- **`scripts/generate_icon.py`** — procedurally renders the app icon (a layered sphere wrapped in a real computed Mie pattern) into `app/resources/`. All visual parameters sit in a CONFIG block at the top; tweak and re-run.
 - **`tests/snapshot_configs.py`** — shared config defining the 16 named `(name, BodyParameters, wavelength)` cases plus the snapshot angle grid (`SNAPSHOT_ANGLES`, the legacy M=3600 evenly-spaced grid), used by both the generator and the test suite.
 
 ## Dependencies
