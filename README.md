@@ -11,6 +11,8 @@ scattering matches a target.
   E-fields, and Mie coefficients via a transfer-matrix method.
 - **Inverse problem** — given a target scattering functional, search a discrete
   space of layer thicknesses and materials for the bodies that best match it.
+- **GUI app** — an interactive PyQt6 desktop app for exploring scattering
+  patterns and RCS while editing the sphere's layers live.
 
 ## Install
 
@@ -68,6 +70,21 @@ task = OptimizationTask(
 result = BruteForceSolver(SolverConfig(n_best=5, progress=False)).run(space, task)
 best_F, best_body = result.best[0]
 ```
+
+## GUI app
+
+```bash
+pip install -e ".[gui]"
+python -m app
+```
+
+Edit the core, coating layers, outer medium, and wavelength on the left; the
+plots on the right recompute automatically (debounced, on a worker thread).
+Each plot cell can show a polar scattering pattern or an RCS-vs-angle curve,
+with a per-cell polarization selector; cells can be added, removed, and
+reconfigured, and the layout persists between runs. Experiment presets
+save/load as JSON via the File menu, and Settings ▸ Preferences switches the
+color theme and fonts.
 
 ## Materials from a file
 

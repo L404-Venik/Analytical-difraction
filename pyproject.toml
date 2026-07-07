@@ -12,7 +12,8 @@ dependencies = ["numpy", "scipy", "matplotlib"]
 
 [project.optional-dependencies]
 progress = ["tqdm"]
-dev = ["pytest", "tqdm"]
+gui = ["PyQt6"]
+dev = ["pytest", "tqdm", "PyQt6"]
 
 [tool.setuptools.packages.find]
 include = ["analytical_diffraction*"]

@@ -62,6 +62,60 @@ Abstract `Solver` base class. One method to implement: `run(space, task) → Sol
 ### `brute_force_solver.py`
 **`BruteForceSolver`** — iterates every candidate body from `SearchSpace`, evaluates the functional against the task's observation, keeps top-N. Validates discreteness at `run()` entry (`space.validate_discrete()`), raises `ValueError` if the space produces no candidates, and probes the first candidate so a buggy functional surfaces as a `RuntimeError` rather than being swallowed; in the sweep only non-finite objectives are skipped (counted in `n_skipped`). Falls back to a plain percentage counter when tqdm is absent. Single-threaded.
 
+## GUI app (`app/`)
+
+PyQt6 desktop app for interactive exploration of scattering patterns and RCS.
+It is a repo-level package (not part of the installable wheel); run it with
+`python -m app` (requires the `gui` extra). Two layers:
+
+### `app/application/` — UI-independent logic
+- **`experiment.py`** — the model bridging UI and library. `LayerSpec` (thickness
+  + complex eps as real/imag floats; index 0 is the core, its `thickness` is the
+  core radius) and `ExperimentState` (layers, `conducting_core`, outer-medium
+  eps, `wavelength`, `fidelity`). `to_body()` cumulative-sums thicknesses into
+  `BodyParameters` radii and appends the outer eps; `to_observation()` builds
+  the angle grid `linspace(0, 2π, n, endpoint=False)` where `n` comes from the
+  `FIDELITY_ANGLES` preset (Low 361 / Medium 1201 / High 3601). Also JSON preset
+  save/load and a `cache_key()` tuple.
+- **`computation.py`** — `compute_result(state, seq)` runs `calculate_S` and
+  wraps the 1-D amplitude arrays in a `ComputationResult`. `Worker` executes on
+  a `QThread` with a latest-wins pending slot (rapid edits collapse to the
+  newest request); `ComputationManager` owns the thread and forwards
+  `finished`/`failed` signals.
+- **`cache.py`** — `ResultCache`, FIFO-bounded dict keyed by
+  `ExperimentState.cache_key()`.
+- **`controller.py`** — `AppController` owns the current state. `set_state`
+  debounces (300 ms) or computes immediately; every request carries a sequence
+  number and only a result matching the newest one is emitted via
+  `result_ready` (stale results are still cached).
+
+### `app/ui/` — PyQt6 widgets
+- **`ui_config.py`** — `ColorPalette` token set with `LIGHT_THEME`/`DARK_THEME`,
+  and `UIConfig`: DPI-aware scaling (`px`/`pt`), fonts, and stylesheet factory
+  methods used by every widget.
+- **`parameter_panel.py`** — left panel: wavelength, per-layer `LayerCard`s
+  (radius/thickness, Re ε, Im ε), conducting-core toggle, outer-space card,
+  fidelity combo, auto-refresh toggle, Calculate Now. `get_state()`/`set_state()`
+  convert to/from `ExperimentState`; emits `parameters_changed` on any edit.
+- **`plots.py`** — matplotlib canvases (`FigureCanvasQTAgg`). `ResultCanvas`
+  base handles theming and the no-result placeholder. `PolarPatternCanvas`
+  renders |S(θ)| polar diagrams (θ=0 at West, legacy grey shading);
+  `RcsAngleCanvas` renders RCS(θ) in dBm² with the legacy convention
+  `10·log10(4πk²|S|²)` and x measured from the backscatter direction. Both
+  support S_θ / S_φ / Both polarization views.
+- **`plot_grid.py`** — `PlotCell` (type combo + polarization + dB-range options
+  + canvas) and `PlotGrid` (1–6 cells, reflowing 1→2 columns, add/remove,
+  `layout_spec()`/`restore_layout()` for persistence). All cells render the
+  same latest `ComputationResult`.
+- **`settings_dialog.py`** — tabbed preferences dialog: palette registry with
+  preview swatches, font family and base size.
+- **`main_window.py`** — wires everything: splitter (panel | grid), File menu
+  (JSON presets), Settings, Help/About, status bar (computing/elapsed/error).
+  Persists window geometry, plot layout, theme, and fonts via `QSettings`.
+
+Data flow: panel edit → `parameters_changed` → controller debounce → cache or
+worker thread → `result_ready` → every plot cell redraws.
+
 ## Tests (`tests/`)
 
 pytest suite covering:
@@ -74,6 +128,7 @@ pytest suite covering:
 - `test_optimization.py` — `OptimizationTask`, `SolverConfig`, `SolverResult`, `BruteForceSolver`
 - `test_search_space.py` — `SearchSpace` iteration, filtering, and size estimation
 - `test_materials.py` — `lossy_eps`/`load_materials` parsing and validation, plus a guard pinning the `+i` lossy permittivity convention
+- `test_app/` — GUI application layer (no widgets, no event-loop rendering): `test_experiment.py` (state↔`BodyParameters` conversion, fidelity grids, preset round-trip), `test_cache.py` (keying, FIFO eviction), `test_controller.py` (request/debounce/stale-guard flow against a fake computation manager, plus `compute_result` end-to-end)
 
 ## Examples (`examples/`)
 
@@ -87,5 +142,6 @@ pytest suite covering:
 ## Dependencies
 
 - `numpy`, `scipy` — numerics
-- `matplotlib` — plotting
+- `matplotlib` — plotting (and the GUI's embedded canvases)
 - `tqdm` (optional) — progress bars in brute-force search
+- `PyQt6` (optional, `gui` extra) — the desktop app
