@@ -8,7 +8,7 @@ import numpy as np
 
 from analytical_diffraction import BodyParameters, ObservationParameters
 
-FIDELITY_ANGLES = {"Low": 361, "Medium": 1201, "High": 3601}
+FIDELITY_ANGLES = {"Low": 360, "Medium": 1200, "High": 3600}
 DEFAULT_FIDELITY = "Medium"
 
 
