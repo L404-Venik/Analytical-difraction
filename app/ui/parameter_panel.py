@@ -8,10 +8,22 @@ from PyQt6.QtWidgets import (
     QLabel, QScrollArea, QComboBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
+from scipy.constants import speed_of_light as C
 
 from app.application.experiment import ExperimentState, FIDELITY_ANGLES, LayerSpec
 
 from .ui_config import UIConfig
+
+WAVE_MODE_WAVELENGTH = 0
+WAVE_MODE_FREQUENCY = 1
+WAVE_MODES = ["Wavelength λ (m):", "Frequency (GHz):"]
+
+WAVELENGTH_RANGE_M = (0.0001, 100.0)
+
+
+def _wavelength_ghz_convert(value: float) -> float:
+    """λ[m] → f[GHz] and f[GHz] → λ[m] are the same map: C / (x · 1e9)."""
+    return C / (value * 1e9)
 
 
 class LayerCard(QFrame):
@@ -199,17 +211,19 @@ class ParameterPanel(QWidget):
         wave_form = QFormLayout(wave_group)
         wave_form.setSpacing(cfg.px(8))
 
-        self.wavelength_spin = QDoubleSpinBox()
-        self.wavelength_spin.setRange(0.0001, 100.0)
-        cfg.setup_double_spin(self.wavelength_spin)
-        self.wavelength_spin.setSingleStep(0.01)
-        self.wavelength_spin.setValue(0.55)
-        self.wavelength_spin.setStyleSheet(cfg._spinbox_style(c))
-        self.wavelength_spin.valueChanged.connect(self._on_any_change)
+        self.wave_mode_combo = QComboBox()
+        self.wave_mode_combo.addItems(WAVE_MODES)
+        self.wave_mode_combo.setStyleSheet(cfg._combo_style(c))
+        self.wave_mode_combo.currentIndexChanged.connect(self._on_wave_mode_changed)
 
-        self._lbl_wave = QLabel("Wavelength λ (m):")
-        self._lbl_wave.setStyleSheet(cfg.label_style(c))
-        wave_form.addRow(self._lbl_wave, self.wavelength_spin)
+        self.wave_spin = QDoubleSpinBox()
+        cfg.setup_double_spin(self.wave_spin)
+        self.wave_spin.setStyleSheet(cfg._spinbox_style(c))
+        self._apply_wave_mode_ranges()
+        self.wave_spin.setValue(0.55)
+        self.wave_spin.valueChanged.connect(self._on_any_change)
+
+        wave_form.addRow(self.wave_mode_combo, self.wave_spin)
         layout.addWidget(wave_group)
 
         # --- Layer controls header ---
@@ -290,6 +304,12 @@ class ParameterPanel(QWidget):
     # State I/O                                                            #
     # ------------------------------------------------------------------ #
 
+    def get_wavelength(self) -> float:
+        value = self.wave_spin.value()
+        if self.wave_mode_combo.currentIndex() == WAVE_MODE_FREQUENCY:
+            return _wavelength_ghz_convert(value)
+        return value
+
     def get_state(self) -> ExperimentState:
         return ExperimentState(
             layers=[
@@ -298,7 +318,7 @@ class ParameterPanel(QWidget):
             conducting_core=self._conducting_core,
             outer_eps_real=self._outer_eps_real,
             outer_eps_imag=self._outer_eps_imag,
-            wavelength=self.wavelength_spin.value(),
+            wavelength=self.get_wavelength(),
             fidelity=self.fidelity_combo.currentText(),
         )
 
@@ -310,19 +330,50 @@ class ParameterPanel(QWidget):
         self._outer_eps_real = state.outer_eps_real
         self._outer_eps_imag = state.outer_eps_imag
 
-        for widget in (self.wavelength_spin, self.fidelity_combo, self.conductive_core_cb):
+        shown = state.wavelength
+        if self.wave_mode_combo.currentIndex() == WAVE_MODE_FREQUENCY:
+            shown = _wavelength_ghz_convert(shown)
+
+        for widget in (self.wave_spin, self.fidelity_combo, self.conductive_core_cb):
             widget.blockSignals(True)
-        self.wavelength_spin.setValue(state.wavelength)
+        self.wave_spin.setValue(shown)
         self.fidelity_combo.setCurrentText(state.fidelity)
         self.conductive_core_cb.setChecked(state.conducting_core)
-        for widget in (self.wavelength_spin, self.fidelity_combo, self.conductive_core_cb):
+        for widget in (self.wave_spin, self.fidelity_combo, self.conductive_core_cb):
             widget.blockSignals(False)
 
         self._rebuild_cards()
         self.parameters_changed.emit()
 
+    def get_wave_mode(self) -> int:
+        return self.wave_mode_combo.currentIndex()
+
+    def set_wave_mode(self, mode: int) -> None:
+        if mode in (WAVE_MODE_WAVELENGTH, WAVE_MODE_FREQUENCY):
+            self.wave_mode_combo.setCurrentIndex(mode)
+
     def get_auto_refresh(self) -> bool:
         return self.auto_refresh_cb.isChecked()
+
+    # ------------------------------------------------------------------ #
+    # Wave input mode                                                      #
+    # ------------------------------------------------------------------ #
+
+    def _apply_wave_mode_ranges(self):
+        lo_m, hi_m = WAVELENGTH_RANGE_M
+        if self.wave_mode_combo.currentIndex() == WAVE_MODE_FREQUENCY:
+            self.wave_spin.setRange(_wavelength_ghz_convert(hi_m), _wavelength_ghz_convert(lo_m))
+            self.wave_spin.setSingleStep(0.1)
+        else:
+            self.wave_spin.setRange(lo_m, hi_m)
+            self.wave_spin.setSingleStep(0.01)
+
+    def _on_wave_mode_changed(self, _index: int):
+        converted = _wavelength_ghz_convert(self.wave_spin.value())
+        self.wave_spin.blockSignals(True)
+        self._apply_wave_mode_ranges()
+        self.wave_spin.setValue(converted)
+        self.wave_spin.blockSignals(False)
 
     # ------------------------------------------------------------------ #
     # Layer management                                                     #
@@ -461,12 +512,11 @@ class ParameterPanel(QWidget):
 
         self._scroll_area.setStyleSheet(cfg._scroll_area_style(c))
 
-        label_style = cfg.label_style(c)
-        self._lbl_wave.setStyleSheet(label_style)
-        self._lbl_fidelity.setStyleSheet(label_style)
+        self._lbl_fidelity.setStyleSheet(cfg.label_style(c))
 
-        self.wavelength_spin.setStyleSheet(cfg._spinbox_style(c))
-        cfg.setup_double_spin(self.wavelength_spin)
+        self.wave_mode_combo.setStyleSheet(cfg._combo_style(c))
+        self.wave_spin.setStyleSheet(cfg._spinbox_style(c))
+        cfg.setup_double_spin(self.wave_spin)
 
         self.add_button.setStyleSheet(cfg._add_btn_style(c))
         self.reset_button.setStyleSheet(cfg._reset_btn_style(c))

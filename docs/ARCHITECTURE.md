@@ -95,17 +95,21 @@ It is a repo-level package (not part of the installable wheel); run it with
   and `UIConfig`: DPI-aware scaling (`px`/`pt`), fonts, numeric-input options
   (`spin_decimals`, `dot_decimal` → `locale()`/`setup_double_spin()`), and
   stylesheet factory methods used by every widget.
-- **`parameter_panel.py`** — left panel: wavelength, per-layer `LayerCard`s
+- **`parameter_panel.py`** — left panel: wave input (a mode combo switches the
+  spin between wavelength in meters and frequency in GHz, converting the shown
+  value; the state always stores wavelength), per-layer `LayerCard`s
   (radius/thickness, Re ε, Im ε), conducting-core toggle, outer-space card,
   fidelity combo, auto-refresh toggle, Calculate Now. `get_state()`/`set_state()`
   convert to/from `ExperimentState`; emits `parameters_changed` on any edit.
 - **`plots.py`** — matplotlib canvases (`FigureCanvasQTAgg`). `ResultCanvas`
-  base handles theming and the no-result placeholder. `PolarPatternCanvas`
-  renders |S(θ)| polar diagrams (θ=0 at West, linear or symlog radial scale);
-  `RcsAngleCanvas` renders RCS(θ) in dBm² with the legacy convention
-  `10·log10(4πk²|S|²)` and x measured from the backscatter direction. Both
-  support S_θ / S_φ / Both polarization views (Both overlays the two curves
-  with a legend).
+  base handles theming, the no-result placeholder, fixed margins (no layout
+  engine), and debounced resize re-rendering so splitter drags stay
+  responsive. `PolarPatternCanvas` renders |S(θ)| polar diagrams (θ=0 at
+  West, radius 1.1·max|S|, linear or symlog radial scale; "Both" shows the
+  diploma-style split — |S_φ| on the [0, π] half, |S_θ| on the other, each
+  in its own color); `RcsAngleCanvas` renders RCS(θ) in dBm² with the legacy
+  convention `10·log10(4πk²|S|²)` and x measured from the backscatter
+  direction, overlaying both polarizations with a legend in "Both".
 - **`plot_grid.py`** — `PlotCell` (type combo + polarization + scale or
   dB-range options + canvas; the dB bounds constrain each other so min < max)
   and `PlotGrid` (1–6 cells in nested splitters — a vertical splitter of rows,
@@ -115,7 +119,7 @@ It is a repo-level package (not part of the installable wheel); run it with
 - **`settings_dialog.py`** — tabbed preferences dialog. UI tab: palette
   registry with preview swatches, font family and base size (applied as the
   application font). App tab: spin precision (decimals) and decimal separator
-  (dot vs system locale).
+  (dot vs system locale). A Restore Defaults button resets both tabs.
 - **`main_window.py`** — wires everything: splitter (panel | grid), File menu
   (JSON presets), Settings, Help/About, status bar (computing/elapsed/error).
   Persists window geometry, plot layout, theme, and fonts via `QSettings`.

@@ -4,6 +4,7 @@ import json
 from importlib import metadata
 
 from PyQt6.QtCore import Qt, QSettings
+from scipy.constants import speed_of_light as C
 from PyQt6.QtWidgets import (
     QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox, QSplitter,
 )
@@ -105,6 +106,7 @@ class MainWindow(QMainWindow):
         geometry = self._settings.value("geometry")
         if geometry is not None:
             self.restoreGeometry(geometry)
+        self.param_panel.set_wave_mode(self._settings.value("wave_mode", 0, type=int))
         raw_layout = self._settings.value("plot_layout", "", type=str)
         if raw_layout:
             try:
@@ -135,10 +137,11 @@ class MainWindow(QMainWindow):
     def _on_result_ready(self, result: ComputationResult):
         self.plot_grid.show_result(result)
         state = result.state
+        freq_ghz = C / state.wavelength / 1e9
         self._set_status(
             f"Computed in {result.elapsed_seconds:.2f} s · "
-            f"{len(result.angles)} angles · λ = {state.wavelength:g} m · "
-            f"{len(state.layers)} region(s)"
+            f"{len(result.angles)} angles · λ = {state.wavelength:g} m "
+            f"({freq_ghz:.4g} GHz) · {len(state.layers)} region(s)"
         )
 
     def _on_computation_failed(self, message: str):
@@ -236,6 +239,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._settings.setValue("geometry", self.saveGeometry())
+        self._settings.setValue("wave_mode", self.param_panel.get_wave_mode())
         self._settings.setValue(
             "plot_layout", json.dumps(self.plot_grid.layout_spec())
         )

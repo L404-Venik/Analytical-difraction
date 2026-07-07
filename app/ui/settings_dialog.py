@@ -112,6 +112,14 @@ class _AppTab(QWidget):
         )
         return config
 
+    def set_from(self, config: UIConfig) -> None:
+        self._decimals_spin.setValue(config.spin_decimals)
+        name = next(
+            (name for name, dot in DECIMAL_SEPARATORS.items() if dot == config.dot_decimal),
+            "Dot (.)",
+        )
+        self._separator_combo.setCurrentText(name)
+
 
 class _UITab(QWidget):
     """Colour palette, font family and font size controls."""
@@ -197,7 +205,23 @@ class _UITab(QWidget):
         palette = PALETTE_REGISTRY.get(name, LIGHT_THEME)
         self._preview_strip.update_palette(palette)
 
-    # ── Read back ────────────────────────────────────────────────────────
+    # ── Read back / reset ────────────────────────────────────────────────
+
+    def set_from(self, config: UIConfig) -> None:
+        """Repopulate the controls from *config*."""
+        name = self._detect_palette_name(config.theme) or "Light"
+        self._palette_combo.setCurrentText(name)
+        if config.font_family:
+            idx = self._font_combo.findText(
+                config.font_family, Qt.MatchFlag.MatchFixedString
+            )
+            if idx >= 0:
+                self._font_combo.setCurrentIndex(idx)
+        else:
+            self._font_combo.setCurrentFont(
+                QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+            )
+        self._size_spin.setValue(config.base_font_pt)
 
     def result_config(self) -> UIConfig:
         """Return a new UIConfig reflecting the current widget state."""
@@ -397,11 +421,15 @@ class SettingsDialog(QDialog):
 
         btn_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
-            QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Cancel |
+            QDialogButtonBox.StandardButton.RestoreDefaults
         )
         btn_box.setStyleSheet(self._button_box_style(c))
         btn_box.accepted.connect(self.accept)
         btn_box.rejected.connect(self.reject)
+        btn_box.button(
+            QDialogButtonBox.StandardButton.RestoreDefaults
+        ).clicked.connect(self._restore_defaults)
 
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(12, 8, 12, 0)
@@ -413,6 +441,11 @@ class SettingsDialog(QDialog):
     def result_config(self) -> UIConfig:
         """Return the UIConfig built from the current dialog state."""
         return self._app_tab.apply_to(self._ui_tab.result_config())
+
+    def _restore_defaults(self) -> None:
+        default = UIConfig(scale=self._cfg.scale)
+        self._ui_tab.set_from(default)
+        self._app_tab.set_from(default)
 
     # ── Stylesheet helpers ───────────────────────────────────────────────
 
