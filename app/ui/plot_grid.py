@@ -2,15 +2,18 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QComboBox, QDoubleSpinBox, QFrame, QGridLayout, QHBoxLayout,
-    QLabel, QPushButton, QVBoxLayout, QWidget,
+    QComboBox, QDoubleSpinBox, QFrame, QHBoxLayout,
+    QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget,
 )
 
 from app.application.computation import ComputationResult
 
-from .plots import POLARIZATION_BOTH, POLARIZATIONS, PolarPatternCanvas, RcsAngleCanvas
+from .plots import (
+    POLARIZATION_BOTH, POLARIZATIONS, SCALE_LINEAR, SCALES,
+    PolarPatternCanvas, RcsAngleCanvas,
+)
 from .ui_config import UIConfig
 
 PLOT_TYPES = {
@@ -18,6 +21,7 @@ PLOT_TYPES = {
     "RCS vs angle": RcsAngleCanvas,
 }
 MAX_CELLS = 6
+Y_RANGE_MIN_GAP = 1.0
 
 
 class PlotCell(QFrame):
@@ -30,6 +34,7 @@ class PlotCell(QFrame):
         config: Optional[UIConfig] = None,
         plot_type: str = "Scattering pattern",
         polarization: str = POLARIZATION_BOTH,
+        scale: str = SCALE_LINEAR,
         y_min: float = -30.0,
         y_max: float = 30.0,
         parent: Optional[QWidget] = None,
@@ -64,11 +69,20 @@ class PlotCell(QFrame):
         self.polarization_combo.currentTextChanged.connect(self._on_polarization_changed)
         header.addWidget(self.polarization_combo)
 
+        self.scale_combo = QComboBox()
+        self.scale_combo.addItems(SCALES)
+        self.scale_combo.setCurrentText(scale if scale in SCALES else SCALE_LINEAR)
+        self.scale_combo.currentTextChanged.connect(self._on_scale_changed)
+        header.addWidget(self.scale_combo)
+
         self._y_range_label = QLabel("dB range:")
         header.addWidget(self._y_range_label)
 
+        if y_max - y_min < Y_RANGE_MIN_GAP:
+            y_min, y_max = -30.0, 30.0
         self.y_min_spin = self._make_range_spin(y_min)
         self.y_max_spin = self._make_range_spin(y_max)
+        self._sync_y_range_bounds()
         header.addWidget(self.y_min_spin)
         header.addWidget(self.y_max_spin)
 
@@ -92,6 +106,7 @@ class PlotCell(QFrame):
         spin = QDoubleSpinBox()
         spin.setRange(-200.0, 200.0)
         spin.setDecimals(0)
+        spin.setLocale(self._cfg.locale())
         spin.setSingleStep(10.0)
         spin.setValue(value)
         spin.valueChanged.connect(self._on_y_range_changed)
@@ -107,6 +122,7 @@ class PlotCell(QFrame):
         return {
             "type": self.plot_type,
             "polarization": self.polarization_combo.currentText(),
+            "scale": self.scale_combo.currentText(),
             "y_min": self.y_min_spin.value(),
             "y_max": self.y_max_spin.value(),
         }
@@ -118,6 +134,8 @@ class PlotCell(QFrame):
     def apply_config(self, config: UIConfig) -> None:
         self._cfg = config
         self._restyle()
+        self.y_min_spin.setLocale(config.locale())
+        self.y_max_spin.setLocale(config.locale())
         self._canvas.apply_config(config)
 
     # ------------------------------------------------------------------ #
@@ -128,7 +146,7 @@ class PlotCell(QFrame):
             self._canvas.deleteLater()
         self._canvas = PLOT_TYPES[self.plot_type](self._cfg)
         self._canvas.set_polarization(self.polarization_combo.currentText())
-        self._push_y_range()
+        self._push_options()
         self._canvas_slot.addWidget(self._canvas)
         self._update_options_visibility()
         if self._result is not None:
@@ -136,12 +154,20 @@ class PlotCell(QFrame):
 
     def _update_options_visibility(self) -> None:
         is_rcs = isinstance(self._canvas, RcsAngleCanvas)
+        is_pattern = isinstance(self._canvas, PolarPatternCanvas)
         for widget in (self._y_range_label, self.y_min_spin, self.y_max_spin):
             widget.setVisible(is_rcs)
+        self.scale_combo.setVisible(is_pattern)
 
-    def _push_y_range(self) -> None:
+    def _push_options(self) -> None:
         if isinstance(self._canvas, RcsAngleCanvas):
             self._canvas.set_y_range(self.y_min_spin.value(), self.y_max_spin.value())
+        if isinstance(self._canvas, PolarPatternCanvas):
+            self._canvas.set_scale(self.scale_combo.currentText())
+
+    def _sync_y_range_bounds(self) -> None:
+        self.y_min_spin.setMaximum(self.y_max_spin.value() - Y_RANGE_MIN_GAP)
+        self.y_max_spin.setMinimum(self.y_min_spin.value() + Y_RANGE_MIN_GAP)
 
     def _on_type_changed(self, _text: str) -> None:
         self._rebuild_canvas()
@@ -149,8 +175,12 @@ class PlotCell(QFrame):
     def _on_polarization_changed(self, text: str) -> None:
         self._canvas.set_polarization(text)
 
+    def _on_scale_changed(self, _text: str) -> None:
+        self._push_options()
+
     def _on_y_range_changed(self, _value: float) -> None:
-        self._push_y_range()
+        self._sync_y_range_bounds()
+        self._push_options()
 
     def _restyle(self) -> None:
         c = self._cfg.theme
@@ -168,10 +198,14 @@ class PlotCell(QFrame):
         combo_style = cfg._combo_style(c)
         self.type_combo.setStyleSheet(combo_style)
         self.polarization_combo.setStyleSheet(combo_style)
+        self.scale_combo.setStyleSheet(combo_style)
         spin_style = cfg._spinbox_style(c)
         self.y_min_spin.setStyleSheet(spin_style)
         self.y_max_spin.setStyleSheet(spin_style)
-        self._y_range_label.setStyleSheet(cfg.label_style(c))
+        self._y_range_label.setFont(cfg.font)
+        self._y_range_label.setStyleSheet(
+            f"color: {c.text_primary}; background: transparent; padding: 0 {cfg.px(2)}px;"
+        )
         self.remove_button.setStyleSheet(cfg._delete_btn_style(c))
 
 
@@ -182,15 +216,21 @@ DEFAULT_LAYOUT = [
 
 
 class PlotGrid(QWidget):
-    """Customisable grid of plot cells; every cell renders the same result."""
+    """Resizable grid of plot cells; every cell renders the same result.
+
+    Cells live in a vertical splitter of rows; a row with two cells is itself
+    a horizontal splitter, so every boundary between plots can be dragged.
+    """
 
     def __init__(self, config: Optional[UIConfig] = None, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._cfg = config or UIConfig()
         self._result: ComputationResult | None = None
         self.cells: List[PlotCell] = []
+        self._splitter: QSplitter | None = None
 
-        root = QVBoxLayout(self)
+        root = self._root = QVBoxLayout(self)
         root.setContentsMargins(*([self._cfg.px(6)] * 4))
         root.setSpacing(self._cfg.px(6))
 
@@ -201,12 +241,6 @@ class PlotGrid(QWidget):
         self.add_button.clicked.connect(lambda: self.add_cell())
         toolbar.addWidget(self.add_button)
         root.addLayout(toolbar)
-
-        self._grid_host = QWidget()
-        self._grid = QGridLayout(self._grid_host)
-        self._grid.setSpacing(self._cfg.px(6))
-        self._grid.setContentsMargins(0, 0, 0, 0)
-        root.addWidget(self._grid_host, stretch=1)
 
         self._restyle()
         self.restore_layout(DEFAULT_LAYOUT)
@@ -221,6 +255,7 @@ class PlotGrid(QWidget):
             config=self._cfg,
             plot_type=spec.get("type", "Scattering pattern"),
             polarization=spec.get("polarization", POLARIZATION_BOTH),
+            scale=spec.get("scale", SCALE_LINEAR),
             y_min=float(spec.get("y_min", -30.0)),
             y_max=float(spec.get("y_max", 30.0)),
         )
@@ -263,19 +298,39 @@ class PlotGrid(QWidget):
         self._reflow()
 
     def _reflow(self) -> None:
-        while self._grid.count():
-            self._grid.takeAt(0)
+        old = self._splitter
         n_cols = 1 if len(self.cells) <= 2 else 2
-        n_rows = (len(self.cells) + n_cols - 1) // n_cols
-        for i, cell in enumerate(self.cells):
-            self._grid.addWidget(cell, i // n_cols, i % n_cols)
-        for col in range(2):
-            self._grid.setColumnStretch(col, 1 if col < n_cols else 0)
-        for row in range(MAX_CELLS):
-            self._grid.setRowStretch(row, 1 if row < n_rows else 0)
+
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.setHandleWidth(6)
+        splitter.setChildrenCollapsible(False)
+        for start in range(0, len(self.cells), n_cols):
+            row_cells = self.cells[start : start + n_cols]
+            if len(row_cells) == 1:
+                splitter.addWidget(row_cells[0])
+            else:
+                row = QSplitter(Qt.Orientation.Horizontal)
+                row.setHandleWidth(6)
+                row.setChildrenCollapsible(False)
+                for cell in row_cells:
+                    row.addWidget(cell)
+                splitter.addWidget(row)
+
+        self._root.addWidget(splitter, stretch=1)
+        self._splitter = splitter
+        if old is not None:
+            old.setParent(None)
+            old.deleteLater()
+
         self.add_button.setEnabled(len(self.cells) < MAX_CELLS)
 
     def _restyle(self) -> None:
         c = self._cfg.theme
-        self.setStyleSheet(f"background-color: {c.window_bg};")
+        self.setStyleSheet(
+            f"""
+            PlotGrid {{ background-color: {c.window_bg}; }}
+            QSplitter::handle {{ background-color: {c.border}; }}
+            QSplitter::handle:hover {{ background-color: {c.neutral_border_hover}; }}
+            """
+        )
         self.add_button.setStyleSheet(self._cfg._add_btn_style(c))

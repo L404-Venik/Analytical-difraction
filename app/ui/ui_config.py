@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+from PyQt6.QtCore import QLocale
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QFont, QScreen
 
@@ -141,12 +142,19 @@ class UIConfig:
     font_family:
         Font family name.  ``""`` (default) means "use the system
         default", which is almost always the right choice.
+    spin_decimals:
+        Number of decimals shown by floating-point spin controls.
+    dot_decimal:
+        ``True`` → spin controls use ``.`` as the decimal separator
+        (C locale); ``False`` → the system locale's separator.
     """
 
     theme: ColorPalette = field(default_factory=ColorPalette)
     base_font_pt: int = 10
     scale: float = 1.0
     font_family: str = ""
+    spin_decimals: int = 6
+    dot_decimal: bool = True
 
     # ------------------------------------------------------------------ #
     # Factory                                                              #
@@ -160,6 +168,8 @@ class UIConfig:
         base_font_pt: int = 10,
         extra_scale: float = 1.0,
         font_family: str = "",
+        spin_decimals: int = 6,
+        dot_decimal: bool = True,
     ) -> "UIConfig":
         """Create a config whose scale is derived from the screen's logical DPI.
 
@@ -188,6 +198,8 @@ class UIConfig:
             base_font_pt=base_font_pt,
             scale=dpi_scale * extra_scale,
             font_family=font_family,
+            spin_decimals=spin_decimals,
+            dot_decimal=dot_decimal,
         )
 
     # ------------------------------------------------------------------ #
@@ -201,6 +213,17 @@ class UIConfig:
     def pt(self, base_points: float) -> int:
         """Scale a point size value."""
         return max(1, round(base_points * self.scale))
+
+    def locale(self) -> QLocale:
+        """Locale for numeric input widgets, honouring `dot_decimal`."""
+        locale = QLocale.c() if self.dot_decimal else QLocale.system()
+        locale.setNumberOptions(QLocale.NumberOption.OmitGroupSeparator)
+        return locale
+
+    def setup_double_spin(self, spin) -> None:
+        """Apply decimals and locale to a QDoubleSpinBox."""
+        spin.setDecimals(self.spin_decimals)
+        spin.setLocale(self.locale())
 
     @property
     def font(self) -> QFont:

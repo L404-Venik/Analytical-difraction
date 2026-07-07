@@ -114,8 +114,8 @@ class LayerCard(QFrame):
 
         layout.addLayout(form)
 
-    @staticmethod
     def _make_spinbox(
+        self,
         range_: tuple,
         value: float,
         step: float,
@@ -124,7 +124,7 @@ class LayerCard(QFrame):
     ) -> QDoubleSpinBox:
         sb = QDoubleSpinBox()
         sb.setRange(*range_)
-        sb.setDecimals(6)
+        self._cfg.setup_double_spin(sb)
         sb.setSingleStep(step)
         sb.setValue(value)
         sb.setStyleSheet(style)
@@ -201,15 +201,15 @@ class ParameterPanel(QWidget):
 
         self.wavelength_spin = QDoubleSpinBox()
         self.wavelength_spin.setRange(0.0001, 100.0)
-        self.wavelength_spin.setDecimals(6)
+        cfg.setup_double_spin(self.wavelength_spin)
         self.wavelength_spin.setSingleStep(0.01)
         self.wavelength_spin.setValue(0.55)
         self.wavelength_spin.setStyleSheet(cfg._spinbox_style(c))
         self.wavelength_spin.valueChanged.connect(self._on_any_change)
 
-        lbl_wave = QLabel("Wavelength λ (m):")
-        lbl_wave.setStyleSheet(cfg.label_style(c))
-        wave_form.addRow(lbl_wave, self.wavelength_spin)
+        self._lbl_wave = QLabel("Wavelength λ (m):")
+        self._lbl_wave.setStyleSheet(cfg.label_style(c))
+        wave_form.addRow(self._lbl_wave, self.wavelength_spin)
         layout.addWidget(wave_group)
 
         # --- Layer controls header ---
@@ -268,9 +268,9 @@ class ParameterPanel(QWidget):
         self.fidelity_combo.setStyleSheet(cfg._combo_style(c))
         self.fidelity_combo.currentTextChanged.connect(self._on_any_change)
 
-        lbl_fidelity = QLabel("Fidelity:")
-        lbl_fidelity.setStyleSheet(cfg.label_style(c))
-        fidelity_row.addWidget(lbl_fidelity)
+        self._lbl_fidelity = QLabel("Fidelity:")
+        self._lbl_fidelity.setStyleSheet(cfg.label_style(c))
+        fidelity_row.addWidget(self._lbl_fidelity)
         fidelity_row.addWidget(self.fidelity_combo, stretch=1)
         compute_layout.addLayout(fidelity_row)
 
@@ -414,7 +414,7 @@ class ParameterPanel(QWidget):
 
         self.outer_eps_real_spin = QDoubleSpinBox()
         self.outer_eps_real_spin.setRange(0.0, 100.0)
-        self.outer_eps_real_spin.setDecimals(6)
+        cfg.setup_double_spin(self.outer_eps_real_spin)
         self.outer_eps_real_spin.setSingleStep(0.1)
         self.outer_eps_real_spin.setValue(self._outer_eps_real)
         self.outer_eps_real_spin.setStyleSheet(outer_spin_style)
@@ -422,7 +422,7 @@ class ParameterPanel(QWidget):
 
         self.outer_eps_imag_spin = QDoubleSpinBox()
         self.outer_eps_imag_spin.setRange(0.0, 100.0)
-        self.outer_eps_imag_spin.setDecimals(6)
+        cfg.setup_double_spin(self.outer_eps_imag_spin)
         self.outer_eps_imag_spin.setSingleStep(0.01)
         self.outer_eps_imag_spin.setValue(self._outer_eps_imag)
         self.outer_eps_imag_spin.setStyleSheet(outer_spin_style)
@@ -461,7 +461,12 @@ class ParameterPanel(QWidget):
 
         self._scroll_area.setStyleSheet(cfg._scroll_area_style(c))
 
+        label_style = cfg.label_style(c)
+        self._lbl_wave.setStyleSheet(label_style)
+        self._lbl_fidelity.setStyleSheet(label_style)
+
         self.wavelength_spin.setStyleSheet(cfg._spinbox_style(c))
+        cfg.setup_double_spin(self.wavelength_spin)
 
         self.add_button.setStyleSheet(cfg._add_btn_style(c))
         self.reset_button.setStyleSheet(cfg._reset_btn_style(c))

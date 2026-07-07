@@ -54,24 +54,62 @@ def _make_separator() -> QFrame:
 # Individual tabs
 # ---------------------------------------------------------------------------
 
+DECIMAL_SEPARATORS = {
+    "Dot (.)": True,
+    "System locale": False,
+}
+
+
 class _AppTab(QWidget):
-    """Placeholder — fill in application-level settings here later."""
+    """Numeric input controls: spin precision and decimal separator."""
 
     def __init__(self, config: UIConfig, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        self._cfg = config
+        c = config.theme
+
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
 
-        note = QLabel("Application settings will appear here.")
-        note.setStyleSheet(f"color: {config.theme.text_muted};")
-        note.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(note)
+        input_group = QGroupBox("Numeric input")
+        input_group.setStyleSheet(_UITab._group_style(c))
+        input_form = QFormLayout(input_group)
+        input_form.setSpacing(10)
+        input_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self._decimals_spin = QSpinBox()
+        self._decimals_spin.setRange(1, 10)
+        self._decimals_spin.setValue(config.spin_decimals)
+        self._decimals_spin.setStyleSheet(_UITab._spinbox_style(c))
+
+        decimals_lbl = QLabel("Spin precision (decimals):")
+        decimals_lbl.setStyleSheet(_UITab._label_style(c))
+        input_form.addRow(decimals_lbl, self._decimals_spin)
+
+        self._separator_combo = QComboBox()
+        self._separator_combo.setStyleSheet(_UITab._combo_style(c))
+        for name in DECIMAL_SEPARATORS:
+            self._separator_combo.addItem(name)
+        current = next(
+            (name for name, dot in DECIMAL_SEPARATORS.items() if dot == config.dot_decimal),
+            "Dot (.)",
+        )
+        self._separator_combo.setCurrentText(current)
+
+        separator_lbl = QLabel("Decimal separator:")
+        separator_lbl.setStyleSheet(_UITab._label_style(c))
+        input_form.addRow(separator_lbl, self._separator_combo)
+
+        layout.addWidget(input_group)
         layout.addStretch()
 
-    # Nothing to read back yet.
     def apply_to(self, config: UIConfig) -> UIConfig:
+        config.spin_decimals = self._decimals_spin.value()
+        config.dot_decimal = DECIMAL_SEPARATORS.get(
+            self._separator_combo.currentText(), True
+        )
         return config
 
 
@@ -175,6 +213,8 @@ class _UITab(QWidget):
             base_font_pt=font_size_pt,
             scale=self._cfg.scale,
             font_family=font_family,
+            spin_decimals=self._cfg.spin_decimals,
+            dot_decimal=self._cfg.dot_decimal,
         )
 
     # ── Helpers ──────────────────────────────────────────────────────────
@@ -372,7 +412,7 @@ class SettingsDialog(QDialog):
 
     def result_config(self) -> UIConfig:
         """Return the UIConfig built from the current dialog state."""
-        return self._ui_tab.result_config()
+        return self._app_tab.apply_to(self._ui_tab.result_config())
 
     # ── Stylesheet helpers ───────────────────────────────────────────────
 

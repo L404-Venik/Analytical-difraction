@@ -18,12 +18,6 @@ POLARIZATIONS = [POLARIZATION_THETA, POLARIZATION_PHI, POLARIZATION_BOTH]
 _LOG_FLOOR = 1e-300
 
 
-def _is_dark(hex_color: str) -> bool:
-    value = hex_color.lstrip("#")
-    r, g, b = (int(value[i : i + 2], 16) for i in (0, 2, 4))
-    return 0.299 * r + 0.587 * g + 0.114 * b < 128
-
-
 class ResultCanvas(FigureCanvasQTAgg):
     """Matplotlib canvas that renders one view of a ComputationResult."""
 
@@ -98,38 +92,53 @@ class ResultCanvas(FigureCanvasQTAgg):
         raise NotImplementedError
 
 
+SCALE_LINEAR = "Linear"
+SCALE_LOG = "Log"
+SCALES = [SCALE_LINEAR, SCALE_LOG]
+
+
 class PolarPatternCanvas(ResultCanvas):
     """Polar scattering pattern |S(θ)|, in the style of plot_field_scaterring."""
 
     polar = True
 
+    def __init__(self, config: Optional[UIConfig] = None):
+        self._scale = SCALE_LINEAR
+        super().__init__(config)
+
+    def set_scale(self, scale: str) -> None:
+        if scale not in SCALES:
+            raise ValueError(f"scale must be one of {SCALES}")
+        self._scale = scale
+        self._redraw()
+
     def _draw(self, ax, result: ComputationResult) -> None:
         c = self._cfg.theme
-        angles = result.angles
+        theta = np.append(result.angles, result.angles[0] + 2.0 * np.pi)
 
-        if self._polarization == POLARIZATION_THETA:
-            values = np.abs(result.S_th)
-            title = "Scattering pattern |S_θ|"
-        elif self._polarization == POLARIZATION_PHI:
-            values = np.abs(result.S_ph)
-            title = "Scattering pattern |S_φ|"
+        series = []
+        if self._polarization in (POLARIZATION_THETA, POLARIZATION_BOTH):
+            series.append(("$|S_{\\theta}|$", result.S_th, c.accent_calc))
+        if self._polarization in (POLARIZATION_PHI, POLARIZATION_BOTH):
+            series.append(("$|S_{\\phi}|$", result.S_ph, c.accent_add))
+
+        r_max = 1.0
+        for label, S, color in series:
+            values = np.abs(S)
+            values = np.append(values, values[0])
+            r_max = max(r_max, float(values.max()) * 1.05)
+            ax.plot(theta, values, linestyle="-", linewidth=1.5, label=label, color=color)
+
+        if self._polarization == POLARIZATION_BOTH:
+            ax.legend(loc="upper left", bbox_to_anchor=(-0.25, 1.12))
+
+        if self._scale == SCALE_LOG:
+            ax.set_rscale("symlog", linthresh=r_max * 1e-4)
+            ax.set_ylim(0, r_max)
         else:
-            values = np.where(angles < np.pi, np.abs(result.S_ph), np.abs(result.S_th))
-            title = "Scattering pattern |S_φ| / |S_θ|"
-
-        theta = np.append(angles, angles[0] + 2.0 * np.pi)
-        values = np.append(values, values[0])
-        r_max = float(values.max()) * 1.05 or 1.0
-
-        shade = "#333333" if _is_dark(c.window_bg) else "#bfbfbf"
-        lim = np.deg2rad(5.0)
-        ax.fill_between(np.linspace(lim, np.pi, 100), 0, r_max, color=shade, zorder=0)
-        ax.fill_between(np.linspace(-np.pi, -lim, 100), 0, r_max, color=shade, zorder=0)
-
-        ax.plot(theta, values, linestyle="-", linewidth=1.5, color=c.accent_calc)
-        ax.set_ylim(0, r_max)
+            ax.set_ylim(0, r_max)
         ax.set_theta_zero_location("W")
-        ax.set_title(title)
+        ax.set_title("Scattering pattern")
         ax.grid(True, color=c.border_light)
 
 

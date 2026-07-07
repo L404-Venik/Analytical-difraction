@@ -4,7 +4,9 @@ import json
 from importlib import metadata
 
 from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QSplitter
+from PyQt6.QtWidgets import (
+    QApplication, QFileDialog, QLabel, QMainWindow, QMessageBox, QSplitter,
+)
 
 from app.application.computation import ComputationResult
 from app.application.controller import AppController
@@ -25,6 +27,7 @@ class MainWindow(QMainWindow):
         self._controller = controller
         self._settings = QSettings(ORGANIZATION, APPLICATION)
         self._ui_cfg = self._load_ui_config()
+        QApplication.instance().setFont(self._ui_cfg.font)
 
         self.setWindowTitle("Sphere Diffraction")
         self.resize(1600, 900)
@@ -45,10 +48,14 @@ class MainWindow(QMainWindow):
         palette_name = self._settings.value("palette", "Light", type=str)
         font_family = self._settings.value("font_family", "", type=str)
         base_font_pt = self._settings.value("base_font_pt", 10, type=int)
+        spin_decimals = self._settings.value("spin_decimals", 6, type=int)
+        dot_decimal = self._settings.value("dot_decimal", True, type=bool)
         return UIConfig.from_screen(
             theme=PALETTE_REGISTRY.get(palette_name, LIGHT_THEME),
             base_font_pt=base_font_pt,
             font_family=font_family,
+            spin_decimals=spin_decimals,
+            dot_decimal=dot_decimal,
         )
 
     def _build_menu(self):
@@ -176,6 +183,7 @@ class MainWindow(QMainWindow):
 
     def _apply_config(self, config: UIConfig):
         self._ui_cfg = config
+        QApplication.instance().setFont(config.font)
         self.param_panel.apply_config(config)
         self.plot_grid.apply_config(config)
         self._restyle_window()
@@ -183,6 +191,8 @@ class MainWindow(QMainWindow):
         self._settings.setValue("palette", self._palette_name(config))
         self._settings.setValue("font_family", config.font_family)
         self._settings.setValue("base_font_pt", config.base_font_pt)
+        self._settings.setValue("spin_decimals", config.spin_decimals)
+        self._settings.setValue("dot_decimal", config.dot_decimal)
 
     @staticmethod
     def _palette_name(config: UIConfig) -> str:

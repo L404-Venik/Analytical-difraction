@@ -75,8 +75,9 @@ It is a repo-level package (not part of the installable wheel); run it with
   eps, `wavelength`, `fidelity`). `to_body()` cumulative-sums thicknesses into
   `BodyParameters` radii and appends the outer eps; `to_observation()` builds
   the angle grid `linspace(0, 2π, n, endpoint=False)` where `n` comes from the
-  `FIDELITY_ANGLES` preset (Low 361 / Medium 1201 / High 3601). Also JSON preset
-  save/load and a `cache_key()` tuple.
+  `FIDELITY_ANGLES` preset (Low 360 / Medium 1200 / High 3600 — exact 1°/0.3°/0.1°
+  steps with 180° on the grid). Also JSON preset save/load and a `cache_key()`
+  tuple.
 - **`computation.py`** — `compute_result(state, seq)` runs `calculate_S` and
   wraps the 1-D amplitude arrays in a `ComputationResult`. `Worker` executes on
   a `QThread` with a latest-wins pending slot (rapid edits collapse to the
@@ -91,24 +92,30 @@ It is a repo-level package (not part of the installable wheel); run it with
 
 ### `app/ui/` — PyQt6 widgets
 - **`ui_config.py`** — `ColorPalette` token set with `LIGHT_THEME`/`DARK_THEME`,
-  and `UIConfig`: DPI-aware scaling (`px`/`pt`), fonts, and stylesheet factory
-  methods used by every widget.
+  and `UIConfig`: DPI-aware scaling (`px`/`pt`), fonts, numeric-input options
+  (`spin_decimals`, `dot_decimal` → `locale()`/`setup_double_spin()`), and
+  stylesheet factory methods used by every widget.
 - **`parameter_panel.py`** — left panel: wavelength, per-layer `LayerCard`s
   (radius/thickness, Re ε, Im ε), conducting-core toggle, outer-space card,
   fidelity combo, auto-refresh toggle, Calculate Now. `get_state()`/`set_state()`
   convert to/from `ExperimentState`; emits `parameters_changed` on any edit.
 - **`plots.py`** — matplotlib canvases (`FigureCanvasQTAgg`). `ResultCanvas`
   base handles theming and the no-result placeholder. `PolarPatternCanvas`
-  renders |S(θ)| polar diagrams (θ=0 at West, legacy grey shading);
+  renders |S(θ)| polar diagrams (θ=0 at West, linear or symlog radial scale);
   `RcsAngleCanvas` renders RCS(θ) in dBm² with the legacy convention
   `10·log10(4πk²|S|²)` and x measured from the backscatter direction. Both
-  support S_θ / S_φ / Both polarization views.
-- **`plot_grid.py`** — `PlotCell` (type combo + polarization + dB-range options
-  + canvas) and `PlotGrid` (1–6 cells, reflowing 1→2 columns, add/remove,
-  `layout_spec()`/`restore_layout()` for persistence). All cells render the
-  same latest `ComputationResult`.
-- **`settings_dialog.py`** — tabbed preferences dialog: palette registry with
-  preview swatches, font family and base size.
+  support S_θ / S_φ / Both polarization views (Both overlays the two curves
+  with a legend).
+- **`plot_grid.py`** — `PlotCell` (type combo + polarization + scale or
+  dB-range options + canvas; the dB bounds constrain each other so min < max)
+  and `PlotGrid` (1–6 cells in nested splitters — a vertical splitter of rows,
+  two-cell rows are horizontal splitters — so every plot boundary is draggable;
+  add/remove, `layout_spec()`/`restore_layout()` for persistence). All cells
+  render the same latest `ComputationResult`.
+- **`settings_dialog.py`** — tabbed preferences dialog. UI tab: palette
+  registry with preview swatches, font family and base size (applied as the
+  application font). App tab: spin precision (decimals) and decimal separator
+  (dot vs system locale).
 - **`main_window.py`** — wires everything: splitter (panel | grid), File menu
   (JSON presets), Settings, Help/About, status bar (computing/elapsed/error).
   Persists window geometry, plot layout, theme, and fonts via `QSettings`.
