@@ -85,6 +85,10 @@ class ResultCanvas(FigureCanvasQTAgg):
         self._cfg = config
         self._redraw()
 
+    def export(self, path: str) -> None:
+        """Save the current figure to *path*; format follows the extension."""
+        self._fig.savefig(path, dpi=200, facecolor=self._fig.get_facecolor())
+
     # ------------------------------------------------------------------ #
 
     def _redraw(self) -> None:

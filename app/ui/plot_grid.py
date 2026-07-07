@@ -4,8 +4,8 @@ from typing import List, Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QComboBox, QDoubleSpinBox, QFrame, QHBoxLayout,
-    QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget,
+    QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QHBoxLayout,
+    QLabel, QMessageBox, QPushButton, QSplitter, QVBoxLayout, QWidget,
 )
 
 from app.application.computation import ComputationResult
@@ -88,8 +88,15 @@ class PlotCell(QFrame):
 
         header.addStretch()
 
-        self.remove_button = QPushButton("✕")
         btn_size = self._cfg.px(24)
+
+        self.save_button = QPushButton("💾")
+        self.save_button.setFixedSize(btn_size, btn_size)
+        self.save_button.setToolTip("Save plot as image…")
+        self.save_button.clicked.connect(self._save_image)
+        header.addWidget(self.save_button)
+
+        self.remove_button = QPushButton("✕")
         self.remove_button.setFixedSize(btn_size, btn_size)
         self.remove_button.clicked.connect(lambda: self.remove_requested.emit(self))
         header.addWidget(self.remove_button)
@@ -182,6 +189,19 @@ class PlotCell(QFrame):
         self._sync_y_range_bounds()
         self._push_options()
 
+    def _save_image(self) -> None:
+        default_name = self.plot_type.lower().replace(" ", "_") + ".png"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Plot Image", default_name,
+            "PNG image (*.png);;SVG vector (*.svg);;PDF document (*.pdf);;JPEG image (*.jpg)",
+        )
+        if not path:
+            return
+        try:
+            self._canvas.export(path)
+        except Exception as exc:
+            QMessageBox.warning(self, "Save Plot Image", f"Could not save image:\n{exc}")
+
     def _restyle(self) -> None:
         c = self._cfg.theme
         cfg = self._cfg
@@ -206,6 +226,7 @@ class PlotCell(QFrame):
         self._y_range_label.setStyleSheet(
             f"color: {c.text_primary}; background: transparent; padding: 0 {cfg.px(2)}px;"
         )
+        self.save_button.setStyleSheet(cfg._reset_btn_style(c))
         self.remove_button.setStyleSheet(cfg._delete_btn_style(c))
 
 
